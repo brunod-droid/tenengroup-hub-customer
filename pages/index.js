@@ -18,6 +18,7 @@ const MENU = [
   "OCy",
   "AI Agents",
   "Q&A",
+  "Analysis",
   "Training"
 ];
 const QUICK_TOOLS = [
@@ -1731,6 +1732,131 @@ function SupplierInfo() {
 }
 
 
+const AI_PLATFORM_ROWS = [
+  ["Approx. price (100 users / year)", "~$30K", "~$24K", "~$36K"],
+  ["GDPR compliance", "Yes", "Yes", "Yes"],
+  ["Data used for training", "No", "No", "No"],
+  ["Best fit", "Best all-rounder", "Best Google ecosystem", "Best for long documents"],
+  ["Main strength", "Analysis, coding, reporting, content", "Gmail, Docs, Drive and Sheets", "Legal, HR, brand and policy review"]
+];
+
+const AI_DEPARTMENTS = [
+  ["Customer Service", "ChatGPT", "Best for ticket analysis, SOP creation, QA reviews and agent coaching."],
+  ["Marketing", "ChatGPT", "Strongest for campaign ideas, market research and content generation."],
+  ["Creative", "ChatGPT", "Best mix of ideation, copywriting and image generation."],
+  ["Brand", "Claude", "Strongest for tone-of-voice consistency and long brand guidelines."],
+  ["Legal", "Claude", "Excellent for contract review and long-document analysis."],
+  ["HR", "Claude", "Very strong for policies, recruitment content and employee communications."],
+  ["Finance", "ChatGPT", "Best for spreadsheet analysis, reporting and business insights."],
+  ["Operations / Factory", "Gemini", "Most natural fit for Google Sheets, Docs and operational workflows."],
+  ["Supply Chain", "Gemini", "Ideal for collaborative planning in the Google Workspace ecosystem."],
+  ["IT / Engineering", "ChatGPT", "Strongest for coding, troubleshooting and technical documentation."],
+  ["Leadership", "ChatGPT", "Best overall assistant for analysis, decisions and executive communication."]
+];
+
+function SimpleTable({ headers, rows }) {
+  return (
+    <div style={{ overflowX:"auto", marginTop:18 }}>
+      <table style={{ width:"100%", borderCollapse:"collapse", background:"#fff" }}>
+        <thead>
+          <tr style={{ textAlign:"left", color:"#475569", borderBottom:"1px solid #e5e7eb" }}>
+            {headers.map((header) => <th key={header} style={{ padding:"14px 12px", fontSize:14 }}>{header}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+            <tr key={index} style={{ borderBottom:"1px solid #f1f5f9" }}>
+              {row.map((cell, cellIndex) => (
+                <td key={cellIndex} style={{ padding:"14px 12px", fontWeight:cellIndex === 0 ? 900 : 700, color:cellIndex === 0 ? "#111827" : "#374151", lineHeight:1.5 }}>
+                  {cell}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function AnalysisPage({ setPage }) {
+  return (
+    <>
+      <h1 style={{ fontSize:40 }}>Analysis</h1>
+      <Box>
+        <div style={{ fontSize:30, fontWeight:900 }}>Business Analysis Library</div>
+        <div style={{ marginTop:10, color:"#4b5563", lineHeight:1.7 }}>
+          Short, clear and decision-ready benchmarks for managers and teams.
+        </div>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3, minmax(240px, 1fr))", gap:16, marginTop:22 }}>
+          <SmallCard title="AI Comparison" text="Price, GDPR, strengths and best AI by department" onClick={() => setPage("AI Comparison")} />
+        </div>
+      </Box>
+    </>
+  );
+}
+
+function AIComparisonPage({ setPage }) {
+  return (
+    <>
+      <button onClick={() => setPage("Analysis")} style={{ background:"#e5e7eb", color:"#111827", border:"none", borderRadius:12, padding:"10px 14px", fontWeight:900, cursor:"pointer", marginBottom:14 }}>
+        ← Back to Analysis
+      </button>
+
+      <h1 style={{ fontSize:40 }}>AI Comparison</h1>
+
+      <Box>
+        <div style={{ display:"flex", justifyContent:"space-between", gap:16, alignItems:"flex-start", flexWrap:"wrap" }}>
+          <div>
+            <div style={{ fontSize:30, fontWeight:900 }}>Price, GDPR & Comparison</div>
+            <div style={{ marginTop:10, color:"#4b5563", lineHeight:1.7 }}>
+              Quick executive view of ChatGPT, Gemini and Claude for company usage.
+            </div>
+          </div>
+          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+            <Pill>GDPR ready</Pill>
+            <Pill>Google accounts available</Pill>
+            <Pill>Business benchmark</Pill>
+          </div>
+        </div>
+
+        <SimpleTable headers={["Criteria", "ChatGPT", "Gemini", "Claude"]} rows={AI_PLATFORM_ROWS} />
+
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:14, marginTop:18 }}>
+          <div style={{ background:"#eff6ff", border:"1px solid #bfdbfe", borderRadius:18, padding:18 }}>
+            <div style={{ fontSize:22, fontWeight:950 }}>ChatGPT</div>
+            <div style={{ marginTop:8, color:"#374151", lineHeight:1.6 }}>Best all-rounder for analysis, reporting, content, coding and business support.</div>
+          </div>
+          <div style={{ background:"#f0fdf4", border:"1px solid #bbf7d0", borderRadius:18, padding:18 }}>
+            <div style={{ fontSize:22, fontWeight:950 }}>Gemini</div>
+            <div style={{ marginTop:8, color:"#374151", lineHeight:1.6 }}>Best value when employees already work daily in Google Workspace.</div>
+          </div>
+          <div style={{ background:"#faf5ff", border:"1px solid #e9d5ff", borderRadius:18, padding:18 }}>
+            <div style={{ fontSize:22, fontWeight:950 }}>Claude</div>
+            <div style={{ marginTop:8, color:"#374151", lineHeight:1.6 }}>Best specialist for long documents, legal, HR and brand consistency.</div>
+          </div>
+        </div>
+      </Box>
+
+      <Box>
+        <div style={{ fontSize:30, fontWeight:900 }}>Best AI by Department</div>
+        <div style={{ marginTop:10, color:"#4b5563", lineHeight:1.7 }}>
+          One recommended tool per department, with the reason in one sentence.
+        </div>
+        <SimpleTable headers={["Department", "Best tool", "Why"]} rows={AI_DEPARTMENTS} />
+      </Box>
+
+      <Box>
+        <div style={{ fontSize:28, fontWeight:900 }}>Recommended approach</div>
+        <div style={{ marginTop:12, color:"#374151", lineHeight:1.8 }}>
+          <b>Most balanced setup:</b> Gemini for broad Google Workspace adoption, plus ChatGPT for managers, analysts and power users. Add Claude for legal, HR and brand teams if long-document review is a priority.
+        </div>
+      </Box>
+    </>
+  );
+}
+
+
 export default function Home() {
   const [page, setPage] = useState("Home");
   const [question, setQuestion] = useState("");
@@ -1843,6 +1969,7 @@ export default function Home() {
 
         <div style={{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:16, marginBottom:22 }}>
           <SmallCard title="Training" text="20-minute CS overview" onClick={() => setPage("Training")} />
+          <SmallCard title="Analysis" text="Business benchmarks and strategic studies" onClick={() => setPage("Analysis")} />
 <SmallCard title="Brands" text="Logos, colors, tone of voice and brand reporting" onClick={() => setPage("Brands")} />
           <SmallCard
             title="TheoGrace Design Lab"
@@ -1892,6 +2019,8 @@ export default function Home() {
       {page === "Debriefs" && <DebriefsPage />}
       {page === "Prod Issues" && <ProdIssuesPage />}
       {page === "Training" && <TrainingMenu />}
+      {page === "Analysis" && <AnalysisPage setPage={setPage} />}
+      {page === "AI Comparison" && <AIComparisonPage setPage={setPage} />}
 
 
 
