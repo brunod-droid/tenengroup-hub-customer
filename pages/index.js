@@ -1733,11 +1733,13 @@ function SupplierInfo() {
 
 
 const AI_PLATFORM_ROWS = [
-  ["Approx. price (100 users / year)", "~$30K", "~$24K", "~$36K"],
+  ["Recommended offer", "ChatGPT Business", "Google Workspace Business Standard with Gemini", "Claude Team"],
+  ["Enterprise offer", "ChatGPT Enterprise", "Google Workspace Enterprise Standard with Gemini", "Claude Enterprise"],
+  ["Approx. price (100 users / year)", "~$30K", "Depends on current Google Workspace plan", "~$36K"],
   ["GDPR compliance", "Yes", "Yes", "Yes"],
-  ["Data used for training", "No", "No", "No"],
+  ["Shared company data", "No", "No", "No"],
   ["Best fit", "Best all-rounder", "Best Google ecosystem", "Best for long documents"],
-  ["Main strength", "Analysis, coding, reporting, content", "Gmail, Docs, Drive and Sheets", "Legal, HR, brand and policy review"]
+  ["Why companies choose it", "Strong for analysis, reporting, content creation and coding", "Native integration with Gmail, Docs, Drive, Sheets and Meet", "Strong for legal, HR, policies and long-document review"]
 ];
 
 const AI_DEPARTMENTS = [
@@ -1789,7 +1791,7 @@ function AnalysisPage({ setPage }) {
           Short, clear and decision-ready benchmarks for managers and teams.
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(3, minmax(240px, 1fr))", gap:16, marginTop:22 }}>
-          <SmallCard title="AI Comparison" text="Price, GDPR, strengths and best AI by department" onClick={() => setPage("AI Comparison")} />
+          <SmallCard title="AI Comparison" text="Price, GDPR, plans and best AI by department" onClick={() => { window.location.hash = "analysis-ai-comparison"; setPage("AI Comparison"); }} />
         </div>
       </Box>
     </>
@@ -1797,9 +1799,11 @@ function AnalysisPage({ setPage }) {
 }
 
 function AIComparisonPage({ setPage }) {
+  const directUrl = typeof window !== "undefined" ? `${window.location.origin}${window.location.pathname}#analysis-ai-comparison` : "";
+
   return (
     <>
-      <button onClick={() => setPage("Analysis")} style={{ background:"#e5e7eb", color:"#111827", border:"none", borderRadius:12, padding:"10px 14px", fontWeight:900, cursor:"pointer", marginBottom:14 }}>
+      <button onClick={() => { window.location.hash = "analysis"; setPage("Analysis"); }} style={{ background:"#e5e7eb", color:"#111827", border:"none", borderRadius:12, padding:"10px 14px", fontWeight:900, cursor:"pointer", marginBottom:14 }}>
         ← Back to Analysis
       </button>
 
@@ -1810,17 +1814,22 @@ function AIComparisonPage({ setPage }) {
           <div>
             <div style={{ fontSize:30, fontWeight:900 }}>Price, GDPR & Comparison</div>
             <div style={{ marginTop:10, color:"#4b5563", lineHeight:1.7 }}>
-              Quick executive view of ChatGPT, Gemini and Claude for company usage.
+              Quick executive view of ChatGPT, Gemini and Claude: exact offer names, pricing idea, GDPR status, shared company data and key strengths.
             </div>
           </div>
           <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
             <Pill>GDPR ready</Pill>
             <Pill>Google accounts available</Pill>
             <Pill>Business benchmark</Pill>
+            <button onClick={() => navigator.clipboard.writeText(directUrl)} style={{ background:"#111827", color:"#fff", border:"none", borderRadius:999, padding:"8px 12px", cursor:"pointer", fontWeight:800, fontSize:13 }}>Copy direct URL</button>
           </div>
         </div>
 
         <SimpleTable headers={["Criteria", "ChatGPT", "Gemini", "Claude"]} rows={AI_PLATFORM_ROWS} />
+
+        <div style={{ marginTop:14, color:"#64748b", lineHeight:1.7, fontSize:14 }}>
+          <b>Shared company data = No</b> means company prompts, files, spreadsheets and documents are not used to train public AI models. Pricing is indicative and should be validated with each vendor before purchase.
+        </div>
 
         <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:14, marginTop:18 }}>
           <div style={{ background:"#eff6ff", border:"1px solid #bfdbfe", borderRadius:18, padding:18 }}>
@@ -1863,6 +1872,18 @@ export default function Home() {
   const [search, setSearch] = useState("");
   const [productSearch, setProductSearch] = useState("");
   const [logoOk, setLogoOk] = useState(true);
+
+  useEffect(() => {
+    const applyHashRoute = () => {
+      if (typeof window === "undefined") return;
+      const hash = window.location.hash.replace("#", "");
+      if (hash === "analysis-ai-comparison") setPage("AI Comparison");
+      if (hash === "analysis") setPage("Analysis");
+    };
+    applyHashRoute();
+    window.addEventListener("hashchange", applyHashRoute);
+    return () => window.removeEventListener("hashchange", applyHashRoute);
+  }, []);
 
   const answer = useMemo(() => assistantAnswer(question), [question]);
   const shineonItems = useMemo(() => SHINEON_PRODUCTS.map(normalizeProduct), []);
@@ -1918,7 +1939,10 @@ export default function Home() {
           return (
             <div
               key={m}
-              onClick={() => setPage(m)}
+              onClick={() => {
+                if (m === "Analysis") window.location.hash = "analysis";
+                setPage(m);
+              }}
               style={{
                 padding:"12px 14px",
                 borderRadius:10,
@@ -1969,7 +1993,7 @@ export default function Home() {
 
         <div style={{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:16, marginBottom:22 }}>
           <SmallCard title="Training" text="20-minute CS overview" onClick={() => setPage("Training")} />
-          <SmallCard title="Analysis" text="Business benchmarks and strategic studies" onClick={() => setPage("Analysis")} />
+          <SmallCard title="Analysis" text="Business benchmarks and strategic studies" onClick={() => { window.location.hash = "analysis"; setPage("Analysis"); }} />
 <SmallCard title="Brands" text="Logos, colors, tone of voice and brand reporting" onClick={() => setPage("Brands")} />
           <SmallCard
             title="TheoGrace Design Lab"
