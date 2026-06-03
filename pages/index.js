@@ -1856,7 +1856,19 @@ function AIComparisonPage({ setPage }) {
         <SimpleTable headers={["Criteria", "ChatGPT", "Gemini", "Claude"]} rows={AI_PLATFORM_ROWS} />
 
         <div style={{ marginTop:14, color:"#64748b", lineHeight:1.7, fontSize:14 }}>
-          <b>Shared company data = No</b> means company prompts, files, spreadsheets and documents are not used to train public AI models. Pricing is indicative and should be validated with each vendor before purchase.
+          <b>Shared company data = No</b> means company prompts, files, spreadsheets and documents are not used to train public AI models when using Business or Enterprise plans.
+
+         <br /><br />
+
+         <b>Enterprise vs Business:</b> Enterprise plans mainly add security, governance, SSO, SCIM, audit logs, compliance features, higher usage limits and dedicated enterprise support. For most employees, the AI capabilities themselves are very similar.
+
+         <br /><br />
+
+         <b>Typical Negotiation Point:</b> Available for all vendors but negotiated individually and not publicly disclosed.
+
+         <br /><br />
+
+          *Gemini pricing depends on the Google Workspace agreement already in place.
         </div>
 
         <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:14, marginTop:18 }}>
