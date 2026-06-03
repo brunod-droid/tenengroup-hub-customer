@@ -1733,13 +1733,41 @@ function SupplierInfo() {
 
 
 const AI_PLATFORM_ROWS = [
-  ["Recommended offer", "ChatGPT Business", "Google Workspace Business Standard with Gemini", "Claude Team"],
-  ["Enterprise offer", "ChatGPT Enterprise", "Google Workspace Enterprise Standard with Gemini", "Claude Enterprise"],
-  ["Approx. price (100 users / year)", "~$30K", "Depends on current Google Workspace plan", "~$36K"],
-  ["GDPR compliance", "Yes", "Yes", "Yes"],
-  ["Shared company data", "No", "No", "No"],
-  ["Best fit", "Best all-rounder", "Best Google ecosystem", "Best for long documents"],
-  ["Why companies choose it", "Strong for analysis, reporting, content creation and coding", "Native integration with Gmail, Docs, Drive, Sheets and Meet", "Strong for legal, HR, policies and long-document review"]
+  ["Business Offer", "ChatGPT Business", "Gemini Business", "Claude Team"],
+  ["Enterprise Offer", "ChatGPT Enterprise", "Gemini Enterprise", "Claude Enterprise"],
+
+  ["Business Price", "~$25/user/month", "~$20/user/month*", "~$30/user/month"],
+  ["Enterprise Price", "Custom quote", "Custom quote", "Custom quote"],
+
+  ["Approx. Cost (100 users/year)", "~$30,000", "~$24,000*", "~$36,000"],
+
+  ["Difference Business vs Enterprise",
+    "SSO, SCIM, audit logs, advanced security, higher limits and enterprise support",
+    "Higher limits, governance controls, advanced security and Workspace administration",
+    "Higher limits, governance, advanced administration and enterprise support"
+  ],
+
+  ["GDPR Compliance", "Yes", "Yes", "Yes"],
+
+  ["Shared Company Data Used For Training", "No", "No", "No"],
+
+  ["Volume Discounts",
+    "Typically negotiated from ~100+ users",
+    "Typically negotiated through Google Workspace agreements",
+    "Typically negotiated from ~100+ users"
+  ],
+
+  ["Best Fit",
+    "Best all-rounder",
+    "Best Google ecosystem",
+    "Best for long documents"
+  ],
+
+  ["Main Strength",
+    "Analysis, reporting, coding and content creation",
+    "Native Gmail, Docs, Sheets, Drive and Meet integration",
+    "Legal, HR, policies and long-document review"
+  ]
 ];
 
 const AI_DEPARTMENTS = [
