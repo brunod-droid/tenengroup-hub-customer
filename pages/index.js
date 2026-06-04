@@ -1735,53 +1735,36 @@ function SupplierInfo() {
 const AI_PLATFORM_ROWS = [
   ["Business Offer", "ChatGPT Business", "Gemini Business", "Claude Team"],
   ["Enterprise Offer", "ChatGPT Enterprise", "Gemini Enterprise", "Claude Enterprise"],
-
-  ["Business Price", "~$25/user/month", "~$20/user/month*", "~$30/user/month"],
-  ["Enterprise Price", "Custom quote", "Custom quote", "Custom quote"],
-
-  ["Approx. Cost (100 users/year)", "~$30,000", "~$24,000*", "~$36,000"],
-
-  ["Difference Business vs Enterprise",
-    "SSO, SCIM, audit logs, advanced security, higher limits and enterprise support",
-    "Higher limits, governance controls, advanced security and Workspace administration",
-    "Higher limits, governance, advanced administration and enterprise support"
-  ],
-
+  ["Business Price", "~$25/user/month", "~$21/user/month*", "~$20-30/user/month"],
+  ["Enterprise Price", "~$60/user/month or custom quote", "~$45/user/month or custom quote", "Custom / hybrid quote"],
+  ["Approx. Business Cost (100 users/year)", "~$30,000", "~$25,200*", "~$24,000-$36,000"],
+  ["Difference Business vs Enterprise", "Enterprise adds SSO, SCIM, audit logs, advanced security, higher limits and enterprise support", "Enterprise adds Workspace governance, advanced security, data controls, higher limits and stronger admin management", "Enterprise adds higher limits, governance, advanced administration, stronger security and enterprise support"],
   ["GDPR Compliance", "Yes", "Yes", "Yes"],
-
   ["Shared Company Data Used For Training", "No", "No", "No"],
+  ["Typical Negotiation Point", "Usually negotiated from ~100+ users", "Usually negotiated through Google Workspace agreements or larger rollouts", "Usually negotiated for larger deployments / enterprise contracts"],
+  ["Best Fit", "Best all-rounder", "Best Google ecosystem", "Best for long documents, reasoning and code"],
+  ["Main Strength", "Analysis, reporting, coding, content creation and Deep Research", "Native Gmail, Docs, Drive, Sheets and Meet integration", "Legal, HR, policies, long-document review and technical reasoning"]
+];
 
-  ["Volume Discounts",
-    "Typically negotiated from ~100+ users",
-    "Typically negotiated through Google Workspace agreements",
-    "Typically negotiated from ~100+ users"
-  ],
-
-  ["Best Fit",
-    "Best all-rounder",
-    "Best Google ecosystem",
-    "Best for long documents"
-  ],
-
-  ["Main Strength",
-    "Analysis, reporting, coding and content creation",
-    "Native Gmail, Docs, Sheets, Drive and Meet integration",
-    "Legal, HR, policies and long-document review"
-  ]
+const AI_TIER_ROWS = [
+  ["IT Security & SSO", "Simple login and manual user management", "SSO via Okta/Azure/Google and automated user offboarding"],
+  ["Oversight & Audit", "Basic admin controls; limited visibility", "Audit logs and stronger compliance oversight"],
+  ["Usage Limits", "Capped usage; heavy users may hit limits", "Higher or custom limits with priority access"],
+  ["Data Residency", "Standard cloud hosting", "Potential EU data residency / data sovereignty options depending on contract"],
+  ["Knowledge Scaling", "Manual uploads and shared workspaces", "Native connectors to Google Drive, SharePoint or internal knowledge sources"]
 ];
 
 const AI_DEPARTMENTS = [
-  ["Customer Service", "ChatGPT", "Best for ticket analysis, SOP creation, QA reviews and agent coaching."],
-  ["Marketing", "ChatGPT", "Strongest for campaign ideas, market research and content generation."],
-  ["Creative", "ChatGPT", "Best mix of ideation, copywriting and image generation."],
-  ["Brand", "Claude", "Strongest for tone-of-voice consistency and long brand guidelines."],
-  ["Legal", "Claude", "Excellent for contract review and long-document analysis."],
-  ["HR", "Claude", "Very strong for policies, recruitment content and employee communications."],
-  ["Finance", "ChatGPT", "Best for spreadsheet analysis, reporting and business insights."],
-  ["Operations / Factory", "Gemini", "Most natural fit for Google Sheets, Docs and operational workflows."],
-  ["Supply Chain", "Gemini", "Ideal for collaborative planning in the Google Workspace ecosystem."],
-  ["IT / Engineering", "ChatGPT", "Strongest for coding, troubleshooting and technical documentation."],
-  ["Leadership", "ChatGPT", "Best overall assistant for analysis, decisions and executive communication."]
+  ["Customer Service", "ChatGPT", "ChatGPT", "Best choice: ChatGPT - strongest for fluent replies, ticket analysis, SOPs and agent coaching."],
+  ["Marketing", "ChatGPT", "ChatGPT", "Best choice: ChatGPT - strongest for campaign ideas, punchy copy, content and image generation."],
+  ["Creative", "ChatGPT", "Claude", "Split choice: ChatGPT for visual ideation and image generation; Claude for more natural long-form writing."],
+  ["Brand", "Claude", "Gemini", "Split choice: Claude for tone-of-voice consistency; Gemini when real-time Google market context is key."],
+  ["Legal & HR", "Claude", "Claude", "Best choice: Claude - strongest for policies, contracts, HR documents and long-document review."],
+  ["Finance", "ChatGPT", "ChatGPT", "Best choice: ChatGPT - strong spreadsheet analysis, reporting, calculations and business insights."],
+  ["Operations / Factory", "Gemini", "Gemini", "Best choice: Gemini - natural fit for Google Sheets, Docs, visual inputs and operational workflows."],
+  ["Supply Chain", "Gemini", "Gemini", "Best choice: Gemini - best for Google-based planning, logistics files and collaborative workflows."],
+  ["IT / Engineering", "ChatGPT", "Claude", "Split choice: Claude for complex code/debugging; ChatGPT for broader troubleshooting, documentation and automation."],
+  ["Leadership", "ChatGPT", "ChatGPT", "Best choice: ChatGPT - strongest overall for decision support, Deep Research and executive communication."]
 ];
 
 function SimpleTable({ headers, rows }) {
@@ -1858,17 +1841,17 @@ function AIComparisonPage({ setPage }) {
         <div style={{ marginTop:14, color:"#64748b", lineHeight:1.7, fontSize:14 }}>
           <b>Shared company data = No</b> means company prompts, files, spreadsheets and documents are not used to train public AI models when using Business or Enterprise plans.
 
-         <br /><br />
+          <br /><br />
 
-         <b>Enterprise vs Business:</b> Enterprise plans mainly add security, governance, SSO, SCIM, audit logs, compliance features, higher usage limits and dedicated enterprise support. For most employees, the AI capabilities themselves are very similar.
+          <b>Enterprise vs Business:</b> Enterprise mainly adds IT control and scale: SSO, SCIM, audit logs, compliance features, higher usage limits, data residency options and dedicated enterprise support. For most employees, the day-to-day AI capability is similar.
 
-         <br /><br />
+          <br /><br />
 
-         <b>Typical Negotiation Point:</b> Available for all vendors but negotiated individually and not publicly disclosed.
+          <b>Volume discounts:</b> Available for all vendors but negotiated individually and not publicly disclosed. In practice, negotiation usually starts around larger rollouts or through existing vendor agreements, especially Google Workspace.
 
-         <br /><br />
+          <br /><br />
 
-          *Gemini pricing depends on the Google Workspace agreement already in place.
+          *Gemini pricing depends on the Google Workspace agreement already in place. Pricing is indicative and should be validated with each vendor before purchase.
         </div>
 
         <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:14, marginTop:18 }}>
@@ -1888,17 +1871,25 @@ function AIComparisonPage({ setPage }) {
       </Box>
 
       <Box>
+        <div style={{ fontSize:30, fontWeight:900 }}>Business vs Enterprise: What Really Changes?</div>
+        <div style={{ marginTop:10, color:"#4b5563", lineHeight:1.7 }}>
+          Business tiers are usually enough for pilots and team collaboration. Enterprise tiers are for IT control, security, scale and compliance.
+        </div>
+        <SimpleTable headers={["Capability", "Business / Team Tier", "Enterprise Tier"]} rows={AI_TIER_ROWS} />
+      </Box>
+
+      <Box>
         <div style={{ fontSize:30, fontWeight:900 }}>Best AI by Department</div>
         <div style={{ marginTop:10, color:"#4b5563", lineHeight:1.7 }}>
-          One recommended tool per department, with the reason in one sentence.
+          Easy comparison between the initial recommendation and the Gemini analysis, with a final decision note.
         </div>
-        <SimpleTable headers={["Department", "Best tool", "Why"]} rows={AI_DEPARTMENTS} />
+        <SimpleTable headers={["Department", "Initial recommendation", "Gemini analysis", "Decision note"]} rows={AI_DEPARTMENTS} />
       </Box>
 
       <Box>
         <div style={{ fontSize:28, fontWeight:900 }}>Recommended approach</div>
         <div style={{ marginTop:12, color:"#374151", lineHeight:1.8 }}>
-          <b>Most balanced setup:</b> Gemini for broad Google Workspace adoption, plus ChatGPT for managers, analysts and power users. Add Claude for legal, HR and brand teams if long-document review is a priority.
+          <b>Most balanced setup:</b> Start with a Business / Team pilot for 10-20 seats. Use Gemini where Google Workspace integration matters, ChatGPT for managers, analysts, marketing and customer-facing teams, and Claude for Legal, HR, Brand or technical teams that work with long documents or complex reasoning. Upgrade to Enterprise when rollout reaches scale or when IT/Legal requires SSO, audit logs, higher limits or EU data residency.
         </div>
       </Box>
     </>
