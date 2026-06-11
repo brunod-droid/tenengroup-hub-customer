@@ -9,6 +9,71 @@ const sampleQuestions = [
   'Which cities have the highest AOV?',
 ];
 
+function rawValues(row) {
+  return Object.values(row?.raw || {}).map((v) => String(v || '').trim()).filter(Boolean);
+}
+
+function firstEmail(row) {
+  if (row?.email) return row.email;
+  const found = rawValues(row).find((v) => /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(v));
+  const match = found?.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+  return match ? match[0].toLowerCase() : '';
+}
+
+function firstAmount(row) {
+  if (Number(row?.amount || 0) > 0) return Number(row.amount);
+  const nums = rawValues(row)
+    .map((v) => Number(String(v).replace(/[^0-9.-]/g, '')))
+    .filter((n) => Number.isFinite(n) && n > 20 && n < 5000);
+  return nums.length ? Math.max(...nums) : 0;
+}
+
+function parseAddressText(row) {
+  const values = rawValues(row);
+  const address = values.find((v) =>
+    /(united states|canada|united kingdom|australia|germany|france|hong kong|singapore)/i.test(v) &&
+    /[0-9]/.test(v)
+  ) || '';
+
+  const countryMatch = address.match(/\b(United States|Canada|United Kingdom|Australia|Germany|France|Hong Kong|Singapore)\b/i);
+  const country = countryMatch ? countryMatch[1] : row?.country || '';
+
+  const stateMatch = address.match(/\b(Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Florida|Georgia|Hawaii|Illinois|Kansas|Kentucky|Massachusetts|Michigan|Minnesota|Mississippi|Nevada|New Jersey|New York|North Dakota|Ohio|Oklahoma|Oregon|Pennsylvania|South Carolina|Tennessee|Texas|Virginia|Washington|Wisconsin|Wyoming|Ontario|Alberta|Quebec|British Columbia|Florida|California|Texas|New York)\b/i);
+  const state = row?.state || (stateMatch ? stateMatch[1] : '');
+
+  let city = row?.city || '';
+  if (!city && state) {
+    const beforeState = address.split(new RegExp(state, 'i'))[0].trim();
+    const parts = beforeState.split(/\s+/);
+    city = parts.slice(-3).join(' ').replace(/^[0-9#.,-]+/, '').trim();
+  }
+
+  return { address, city, state, country };
+}
+
+function firstProductOrEngraving(row) {
+  const values = rawValues(row);
+  const engraving = row?.engraving || values.find((v) => /(inscription|initial|engraving|charm|chain length|ring size)/i.test(v)) || '';
+  const product = row?.product || values.find((v) => /(necklace|bracelet|ring|tag|charm|willow|name|initial)/i.test(v) && !/@/.test(v)) || '';
+  return { product, engraving };
+}
+
+function enrichOrder(row) {
+  const geo = parseAddressText(row);
+  const productInfo = firstProductOrEngraving(row);
+
+  return {
+    ...row,
+    email: firstEmail(row),
+    amount: firstAmount(row),
+    city: row.city || geo.city,
+    state: row.state || geo.state,
+    country: row.country || geo.country,
+    product: row.product || productInfo.product,
+    engraving: row.engraving || productInfo.engraving,
+  };
+}
+
 function loadSheetJs() {
   if (typeof window === 'undefined') return Promise.reject(new Error('Browser only'));
   if (window.XLSX) return Promise.resolve(window.XLSX);
@@ -165,7 +230,7 @@ export default function CustomerInsightsPage() {
     try {
       setStatus('Loading Oak & Luna customer data...');
       const data = await apiGetData();
-      setOrders(data.orders || []);
+      setOrders((data.orders || []).map(enrichOrder));
       setKustomer(data.kustomer || []);
       setTrustpilot(data.trustpilot || []);
       setStatus('Data loaded from Supabase.');
@@ -217,7 +282,7 @@ export default function CustomerInsightsPage() {
   const insights = useMemo(() => {
     const totalRevenue = orders.reduce((sum, o) => sum + Number(o.amount || 0), 0);
     const uniqueEmails = new Set(orders.map((o) => o.email).filter(Boolean));
-    const engravedOrders = orders.filter((o) => String(o.engraving || '').trim() !== '');
+    const engravedOrders = orders.filter((o) => String(o.engraving || '').trim() !== '' && !/no inscription/i.test(String(o.engraving || '')));
     const giftOrders = orders.filter((o) => String(o.gift_note || '').trim() !== '');
     const topProducts = countBy(orders, (o) => o.product).slice(0, 10);
     const topCities = countBy(orders, (o) => o.city).slice(0, 10);
@@ -246,16 +311,16 @@ export default function CustomerInsightsPage() {
     if (!q.trim()) return;
 
     if (q.includes('new york')) {
-      const ny = orders.filter((o) => String(o.city || '').toLowerCase().includes('new york') || String(o.state || '').toLowerCase() === 'ny');
+      const ny = orders.filter((o) => String(o.city || '').toLowerCase().includes('new york') || String(o.state || '').toLowerCase() === 'new york' || String(o.state || '').toLowerCase() === 'ny');
       const products = countBy(ny, (o) => o.product).slice(0, 5);
-      setAnswer(`Customers from New York have ${formatNumber(ny.length)} orders in the saved dataset. Top products: ${products.map((p) => `${p.name} (${p.count})`).join(', ') || 'not enough product data yet'}.`);
+      setAnswer(`Customers from New York have ${formatNumber(ny.length)} orders in the saved dataset. Top products/personalization patterns: ${products.map((p) => `${p.name} (${p.count})`).join(', ') || 'not enough product data yet'}.`);
       return;
     }
 
     if (q.includes('engraving') || q.includes('engrav')) {
       const productName = q.includes('willow') ? 'willow' : '';
-      const filtered = productName ? orders.filter((o) => String(o.product || '').toLowerCase().includes(productName)) : orders;
-      const engraved = filtered.filter((o) => String(o.engraving || '').trim() !== '');
+      const filtered = productName ? orders.filter((o) => String(o.product || o.engraving || '').toLowerCase().includes(productName)) : orders;
+      const engraved = filtered.filter((o) => String(o.engraving || '').trim() !== '' && !/no inscription/i.test(String(o.engraving || '')));
       const rate = filtered.length ? (engraved.length / filtered.length) * 100 : 0;
       setAnswer(`${productName ? 'Willow-related products' : 'All products'}: ${formatNumber(filtered.length)} orders, ${formatNumber(engraved.length)} with engraving, engraving rate ${rate.toFixed(1)}%.`);
       return;
@@ -263,7 +328,7 @@ export default function CustomerInsightsPage() {
 
     if (q.includes('resize')) {
       const resizeTickets = kustomer.filter((t) => JSON.stringify(t.raw || t).toLowerCase().includes('resize'));
-      setAnswer(`I found ${formatNumber(resizeTickets.length)} resize-related Kustomer conversations in the saved dataset. Product-level matching needs email/order matching quality from both files.`);
+      setAnswer(`I found ${formatNumber(resizeTickets.length)} resize-related Kustomer conversations in the saved dataset.`);
       return;
     }
 
@@ -273,7 +338,7 @@ export default function CustomerInsightsPage() {
       return;
     }
 
-    setAnswer(`Based on saved data: ${formatNumber(orders.length)} orders, ${formatNumber(kustomer.length)} Kustomer conversations, and ${formatNumber(trustpilot.length)} Trustpilot reviews are currently available. Try asking about New York, engraving, resize, or 5-star reviews.`);
+    setAnswer(`Based on saved data: ${formatNumber(orders.length)} orders, ${formatNumber(kustomer.length)} Kustomer conversations, and ${formatNumber(trustpilot.length)} Trustpilot reviews are currently available.`);
   }
 
   const tabs = [
@@ -295,7 +360,7 @@ export default function CustomerInsightsPage() {
             Analyze Oak & Luna customers using saved order data, Kustomer conversations, and Trustpilot reviews.
           </p>
         </div>
-        <div className="heroBadge">Supabase persistent V1</div>
+        <div className="heroBadge">Supabase persistent V1.1</div>
       </div>
 
       <div className="uploadBox">
@@ -335,7 +400,6 @@ export default function CustomerInsightsPage() {
             <h2>Customer Summary</h2>
             <p>
               Oak & Luna customers are analyzed across orders, product personalization, support contacts, and reviews.
-              This V1 focuses on reliable saved metrics and prepares the structure for deeper AI insights.
             </p>
             <div className="grid2">
               <List title="Top Countries" items={insights.topCountries} />
@@ -351,7 +415,7 @@ export default function CustomerInsightsPage() {
           </div>
         )}
 
-        {activeTab === 'products' && <List title="Best Selling Products" items={insights.topProducts} />}
+        {activeTab === 'products' && <List title="Best Selling Products / Personalization Patterns" items={insights.topProducts} />}
 
         {activeTab === 'service' && <List title="Kustomer Contact Reasons" items={insights.topReasons} />}
 
@@ -359,18 +423,13 @@ export default function CustomerInsightsPage() {
           <>
             <h2>Trustpilot Reviews</h2>
             <p>Average rating: {insights.rating.toFixed(1)} based on {formatNumber(trustpilot.length)} saved reviews.</p>
-            <List title="Review themes placeholder" items={[
-              { name: 'Product quality', count: trustpilot.length },
-              { name: 'Meaningful gifts', count: trustpilot.length },
-              { name: 'Customer service', count: trustpilot.length },
-            ]} />
           </>
         )}
 
         {activeTab === 'smart-ai' && (
           <>
             <h2>Smart AI Mode</h2>
-            <p>V1 uses deterministic answers from saved Supabase data. Later, this can be connected to OpenAI for deeper natural-language analysis.</p>
+            <p>V1.1 uses deterministic answers from saved Supabase data.</p>
             <div className="askBox">
               <input value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Ask anything about Oak & Luna customers..." />
               <button onClick={() => runSmartAnswer()}>Ask</button>
