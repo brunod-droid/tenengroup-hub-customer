@@ -16,6 +16,49 @@ const sampleQuestions = [
   'Which cities have the highest AOV?',
 ];
 
+function loadSheetJs() {
+  if (typeof window === 'undefined') return Promise.reject(new Error('Browser only'));
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector('script[data-sheetjs="true"]');
+    if (existing) {
+      existing.addEventListener('load', () => resolve(window.XLSX));
+      existing.addEventListener('error', () => reject(new Error('Failed to load Excel parser.')));
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    script.async = true;
+    script.dataset.sheetjs = 'true';
+    script.onload = () => resolve(window.XLSX);
+    script.onerror = () => reject(new Error('Failed to load Excel parser. Check internet/CSP.'));
+    document.head.appendChild(script);
+  });
+}
+
+async function fileToObjects(file) {
+  const name = String(file?.name || '').toLowerCase();
+
+  if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
+    const XLSX = await loadSheetJs();
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: 'array' });
+    const firstSheet = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[firstSheet];
+
+    const json = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
+    if (json.length > 0) return json;
+
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false });
+    return rowsToObjects(rows);
+  }
+
+  const text = await file.text();
+  return rowsToObjects(parseCsv(text));
+}
+
 function toOrderRecord(row, index) {
   const raw = row;
   const email = String(pick(row, ['email', 'customer_email', 'billing_email', 'shipping_email', 'e_mail']) || '').toLowerCase().trim();
@@ -137,10 +180,15 @@ export default function CustomerInsightsPage() {
 
   async function uploadFile(kind, file) {
     if (!file || !supabase) return;
-    setStatus(`Uploading ${kind}...`);
+    setStatus(`Reading ${file.name}...`);
 
-    const text = await file.text();
-    const objects = rowsToObjects(parseCsv(text));
+    let objects = [];
+    try {
+      objects = await fileToObjects(file);
+    } catch (error) {
+      setStatus(`Read ${kind} failed: ${error.message}`);
+      return;
+    }
 
     const mapper = {
       orders: toOrderRecord,
@@ -150,13 +198,15 @@ export default function CustomerInsightsPage() {
 
     const records = objects.map(mapper).filter(Boolean);
 
+    setStatus(`Replacing saved ${kind} data in Supabase...`);
     const { error: deleteError } = await supabase.from(TABLES[kind]).delete().neq('id', 0);
     if (deleteError) {
       setStatus(`Delete existing ${kind} failed: ${deleteError.message}`);
       return;
     }
 
-    for (const chunk of chunkArray(records, 500)) {
+    setStatus(`Uploading ${formatNumber(records.length)} ${kind} rows...`);
+    for (const chunk of chunkArray(records, 300)) {
       const { error } = await supabase.from(TABLES[kind]).insert(chunk);
       if (error) {
         setStatus(`Upload ${kind} failed: ${error.message}`);
@@ -197,7 +247,6 @@ export default function CustomerInsightsPage() {
 
   function runSmartAnswer(customQuestion) {
     const q = String(customQuestion || question || '').toLowerCase();
-
     if (!q.trim()) return;
 
     if (q.includes('new york')) {
@@ -258,7 +307,7 @@ export default function CustomerInsightsPage() {
           <h2>Upload data once</h2>
           <p>Each upload replaces the previous dataset for that source and stays saved in Supabase.</p>
         </div>
-        <label>Orders CSV<input type="file" accept=".csv" onChange={(e) => uploadFile('orders', e.target.files?.[0])} /></label>
+        <label>Orders Excel/CSV<input type="file" accept=".xlsx,.xls,.csv" onChange={(e) => uploadFile('orders', e.target.files?.[0])} /></label>
         <label>Kustomer CSV<input type="file" accept=".csv" onChange={(e) => uploadFile('kustomer', e.target.files?.[0])} /></label>
         <label>Trustpilot CSV<input type="file" accept=".csv" onChange={(e) => uploadFile('trustpilot', e.target.files?.[0])} /></label>
       </div>
