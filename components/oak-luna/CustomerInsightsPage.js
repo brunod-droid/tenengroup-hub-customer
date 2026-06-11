@@ -1,12 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { supabase } from '../../lib/supabaseClient';
 import { chunkArray, parseCsv, pick, rowsToObjects, safeNumber } from './csvHelpers';
-
-const TABLES = {
-  orders: 'oak_luna_orders',
-  kustomer: 'oak_luna_kustomer',
-  trustpilot: 'oak_luna_trustpilot',
-};
 
 const sampleQuestions = [
   'What do customers from New York order most?',
@@ -141,6 +134,24 @@ function formatMoney(n) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n || 0);
 }
 
+async function apiGetData() {
+  const res = await fetch('/api/oak-luna-customers');
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+
+async function apiUpload(kind, records) {
+  const res = await fetch('/api/oak-luna-customers', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ kind, records }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+
 export default function CustomerInsightsPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [status, setStatus] = useState('');
@@ -151,27 +162,16 @@ export default function CustomerInsightsPage() {
   const [answer, setAnswer] = useState('');
 
   async function loadData() {
-    if (!supabase) {
-      setStatus('Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Vercel.');
-      return;
+    try {
+      setStatus('Loading Oak & Luna customer data...');
+      const data = await apiGetData();
+      setOrders(data.orders || []);
+      setKustomer(data.kustomer || []);
+      setTrustpilot(data.trustpilot || []);
+      setStatus('Data loaded from Supabase.');
+    } catch (error) {
+      setStatus(`Load failed: ${error.message}`);
     }
-
-    setStatus('Loading Oak & Luna customer data...');
-    const [ordersRes, kustomerRes, trustpilotRes] = await Promise.all([
-      supabase.from(TABLES.orders).select('*').limit(5000),
-      supabase.from(TABLES.kustomer).select('*').limit(5000),
-      supabase.from(TABLES.trustpilot).select('*').limit(5000),
-    ]);
-
-    if (ordersRes.error || kustomerRes.error || trustpilotRes.error) {
-      setStatus(`Load failed: ${ordersRes.error?.message || kustomerRes.error?.message || trustpilotRes.error?.message}`);
-      return;
-    }
-
-    setOrders(ordersRes.data || []);
-    setKustomer(kustomerRes.data || []);
-    setTrustpilot(trustpilotRes.data || []);
-    setStatus('Data loaded from Supabase.');
   }
 
   useEffect(() => {
@@ -179,7 +179,7 @@ export default function CustomerInsightsPage() {
   }, []);
 
   async function uploadFile(kind, file) {
-    if (!file || !supabase) return;
+    if (!file) return;
     setStatus(`Reading ${file.name}...`);
 
     let objects = [];
@@ -198,24 +198,14 @@ export default function CustomerInsightsPage() {
 
     const records = objects.map(mapper).filter(Boolean);
 
-    setStatus(`Replacing saved ${kind} data in Supabase...`);
-    const { error: deleteError } = await supabase.from(TABLES[kind]).delete().neq('id', 0);
-    if (deleteError) {
-      setStatus(`Delete existing ${kind} failed: ${deleteError.message}`);
-      return;
+    try {
+      setStatus(`Uploading ${formatNumber(records.length)} ${kind} rows to Supabase...`);
+      await apiUpload(kind, records);
+      setStatus(`${kind} uploaded and saved permanently in Supabase: ${formatNumber(records.length)} rows.`);
+      await loadData();
+    } catch (error) {
+      setStatus(`Upload ${kind} failed: ${error.message}`);
     }
-
-    setStatus(`Uploading ${formatNumber(records.length)} ${kind} rows...`);
-    for (const chunk of chunkArray(records, 300)) {
-      const { error } = await supabase.from(TABLES[kind]).insert(chunk);
-      if (error) {
-        setStatus(`Upload ${kind} failed: ${error.message}`);
-        return;
-      }
-    }
-
-    setStatus(`${kind} uploaded and saved permanently in Supabase: ${formatNumber(records.length)} rows.`);
-    await loadData();
   }
 
   const insights = useMemo(() => {
