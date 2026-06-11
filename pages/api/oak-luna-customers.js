@@ -1,15 +1,12 @@
 const rawSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
-const supabaseAnonKey =
+const supabaseKey =
   process.env.SUPABASE_SERVICE_ROLE_KEY ||
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
   process.env.SUPABASE_ANON_KEY ||
   '';
 
 function normalizeSupabaseUrl(url) {
-  return String(url || '')
-    .trim()
-    .replace(/\/+$/, '')
-    .replace(/\/rest\/v1$/i, '');
+  return String(url || '').trim().replace(/\/+$/, '').replace(/\/rest\/v1$/i, '');
 }
 
 const supabaseUrl = normalizeSupabaseUrl(rawSupabaseUrl);
@@ -20,14 +17,22 @@ const TABLES = {
   trustpilot: 'oak_luna_trustpilot',
 };
 
-function json(res, status, body) {
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '4mb',
+    },
+  },
+};
+
+function send(res, status, body) {
   res.status(status).json(body);
 }
 
 function supabaseHeaders(extra = {}) {
   return {
-    apikey: supabaseAnonKey,
-    Authorization: `Bearer ${supabaseAnonKey}`,
+    apikey: supabaseKey,
+    Authorization: `Bearer ${supabaseKey}`,
     'Content-Type': 'application/json',
     Prefer: 'return=representation',
     ...extra,
@@ -47,11 +52,7 @@ async function readTable(kind, limit = 5000) {
   });
 
   const data = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    throw new Error(data?.message || response.statusText || `Read failed for ${kind}`);
-  }
-
+  if (!response.ok) throw new Error(data?.message || response.statusText || `Read failed for ${kind}`);
   return data || [];
 }
 
@@ -69,7 +70,9 @@ async function deleteTable(kind) {
 }
 
 async function insertRows(kind, rows) {
+  if (!rows.length) return [];
   const table = TABLES[kind];
+
   const response = await fetch(tableUrl(table), {
     method: 'POST',
     headers: supabaseHeaders(),
@@ -77,17 +80,13 @@ async function insertRows(kind, rows) {
   });
 
   const data = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    throw new Error(data?.message || response.statusText || `Insert failed for ${kind}`);
-  }
-
+  if (!response.ok) throw new Error(data?.message || response.statusText || `Insert failed for ${kind}`);
   return data || [];
 }
 
 export default async function handler(req, res) {
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return json(res, 500, {
+  if (!supabaseUrl || !supabaseKey) {
+    return send(res, 500, {
       error:
         'Supabase env variables are missing. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Vercel.',
     });
@@ -100,37 +99,23 @@ export default async function handler(req, res) {
         readTable('kustomer'),
         readTable('trustpilot'),
       ]);
-
-      return json(res, 200, { orders, kustomer, trustpilot });
+      return send(res, 200, { orders, kustomer, trustpilot });
     }
 
     if (req.method === 'POST') {
-      const { kind, records } = req.body || {};
+      const { kind, records, replace } = req.body || {};
 
-      if (!TABLES[kind]) {
-        return json(res, 400, { error: 'Invalid kind. Use orders, kustomer, or trustpilot.' });
-      }
+      if (!TABLES[kind]) return send(res, 400, { error: 'Invalid kind. Use orders, kustomer, or trustpilot.' });
+      if (!Array.isArray(records)) return send(res, 400, { error: 'records must be an array.' });
 
-      if (!Array.isArray(records)) {
-        return json(res, 400, { error: 'records must be an array.' });
-      }
+      if (replace) await deleteTable(kind);
+      await insertRows(kind, records);
 
-      await deleteTable(kind);
-
-      const chunkSize = 300;
-      let inserted = 0;
-
-      for (let i = 0; i < records.length; i += chunkSize) {
-        const chunk = records.slice(i, i + chunkSize);
-        await insertRows(kind, chunk);
-        inserted += chunk.length;
-      }
-
-      return json(res, 200, { ok: true, kind, inserted });
+      return send(res, 200, { ok: true, kind, inserted: records.length, replaced: Boolean(replace) });
     }
 
-    return json(res, 405, { error: 'Method not allowed.' });
+    return send(res, 405, { error: 'Method not allowed.' });
   } catch (error) {
-    return json(res, 500, { error: error.message || 'Unexpected API error.' });
+    return send(res, 500, { error: error.message || 'Unexpected API error.' });
   }
 }

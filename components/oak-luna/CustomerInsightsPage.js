@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { chunkArray, parseCsv, pick, rowsToObjects, safeNumber } from './csvHelpers';
+import { chunkArray, compactRaw, parseCsv, pick, rowsToObjects, safeNumber } from './csvHelpers';
 
 const sampleQuestions = [
   'What do customers from New York order most?',
@@ -53,7 +53,7 @@ async function fileToObjects(file) {
 }
 
 function toOrderRecord(row, index) {
-  const raw = row;
+  const raw = compactRaw(row);
   const email = String(pick(row, ['email', 'customer_email', 'billing_email', 'shipping_email', 'e_mail']) || '').toLowerCase().trim();
   const product = String(pick(row, ['product', 'product_name', 'item_name', 'sku_name', 'title', 'lineitem_name', 'name']) || '');
   const city = String(pick(row, ['city', 'shipping_city', 'billing_city']) || '');
@@ -83,7 +83,7 @@ function toOrderRecord(row, index) {
 }
 
 function toKustomerRecord(row, index) {
-  const raw = row;
+  const raw = compactRaw(row);
   const email = String(pick(row, ['email', 'customer_email', 'contact_email']) || '').toLowerCase().trim();
   return {
     conversation_id: String(pick(row, ['conversation_id', 'id', 'ticket_id']) || `row-${index + 1}`),
@@ -97,7 +97,7 @@ function toKustomerRecord(row, index) {
 }
 
 function toTrustpilotRecord(row, index) {
-  const raw = row;
+  const raw = compactRaw(row);
   const email = String(pick(row, ['email', 'customer_email', 'consumer_email']) || '').toLowerCase().trim();
   return {
     review_id: String(pick(row, ['review_id', 'id']) || `row-${index + 1}`),
@@ -141,11 +141,11 @@ async function apiGetData() {
   return data;
 }
 
-async function apiUpload(kind, records) {
+async function apiUpload(kind, records, replace = false) {
   const res = await fetch('/api/oak-luna-customers', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ kind, records }),
+    body: JSON.stringify({ kind, records, replace }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || res.statusText);
@@ -197,10 +197,16 @@ export default function CustomerInsightsPage() {
     }[kind];
 
     const records = objects.map(mapper).filter(Boolean);
+    const batchSize = kind === 'orders' ? 150 : 300;
+    const batches = chunkArray(records, batchSize);
 
     try {
-      setStatus(`Uploading ${formatNumber(records.length)} ${kind} rows to Supabase...`);
-      await apiUpload(kind, records);
+      for (let i = 0; i < batches.length; i += 1) {
+        const doneBefore = i * batchSize;
+        setStatus(`Uploading ${kind}: ${formatNumber(Math.min(doneBefore + batches[i].length, records.length))} / ${formatNumber(records.length)} rows...`);
+        await apiUpload(kind, batches[i], i === 0);
+      }
+
       setStatus(`${kind} uploaded and saved permanently in Supabase: ${formatNumber(records.length)} rows.`);
       await loadData();
     } catch (error) {

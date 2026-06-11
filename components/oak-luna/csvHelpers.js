@@ -52,7 +52,7 @@ export function rowsToObjects(rows) {
   });
 }
 
-export function chunkArray(items, size = 500) {
+export function chunkArray(items, size = 200) {
   const chunks = [];
   for (let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size));
   return chunks;
@@ -64,10 +64,26 @@ export function safeNumber(value) {
 }
 
 export function pick(obj, possibleKeys) {
+  if (!obj) return '';
+  const lowerMap = {};
+  Object.keys(obj).forEach((key) => {
+    lowerMap[normalizeHeader(key)] = obj[key];
+  });
+
   for (const key of possibleKeys) {
-    if (obj[key] !== undefined && obj[key] !== null && String(obj[key]).trim() !== '') {
-      return obj[key];
+    const normalized = normalizeHeader(key);
+    if (lowerMap[normalized] !== undefined && lowerMap[normalized] !== null && String(lowerMap[normalized]).trim() !== '') {
+      return lowerMap[normalized];
     }
   }
   return '';
+}
+
+export function compactRaw(row) {
+  const out = {};
+  Object.entries(row || {}).forEach(([key, value]) => {
+    const str = String(value ?? '').trim();
+    if (str && str.length < 1000) out[key] = str;
+  });
+  return out;
 }
