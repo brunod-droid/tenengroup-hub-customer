@@ -1,152 +1,399 @@
-import { useMemo, useState } from 'react';
-import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
+import { supabase } from '../../lib/supabaseClient';
+import { chunkArray, parseCsv, pick, rowsToObjects, safeNumber } from './csvHelpers';
 
-const seedMetrics = {
-  customers: '326K+', orders: '326,017', reviews: '1,326', tickets: '48,749',
-  aov: '—', engravedRate: '—', trustpilot: 'Strong 5★ base', topReason: 'Item Received'
+const TABLES = {
+  orders: 'oak_luna_orders',
+  kustomer: 'oak_luna_kustomer',
+  trustpilot: 'oak_luna_trustpilot',
 };
 
-const contactReasons = [
-  ['Item Received', 27602], ['Change Order', 10683], ['Presale Questions', 7211], ['Cancellation Requests', 3253]
-];
-
-const reviewThemes = [
-  'Meaningful personalized jewelry', 'Gift emotion and family connection', 'Customer service support',
-  'Shipping and delivery expectations', 'Sizing, damage or engraving concerns'
-];
-
-const aiExamples = [
+const sampleQuestions = [
   'What do customers from New York order most?',
   'What is the average number of engravings on Willow Tag?',
   'Which products generate the most resize requests?',
   'Why do customers leave 5-star reviews?',
-  'Which products have high revenue and low ticket rate?'
+  'Which cities have the highest AOV?',
 ];
 
+function toOrderRecord(row, index) {
+  const raw = row;
+  const email = String(pick(row, ['email', 'customer_email', 'billing_email', 'shipping_email', 'e_mail']) || '').toLowerCase().trim();
+  const product = String(pick(row, ['product', 'product_name', 'item_name', 'sku_name', 'title', 'lineitem_name', 'name']) || '');
+  const city = String(pick(row, ['city', 'shipping_city', 'billing_city']) || '');
+  const state = String(pick(row, ['state', 'shipping_state', 'province', 'region']) || '');
+  const country = String(pick(row, ['country', 'shipping_country', 'billing_country']) || '');
+  const engraving = String(pick(row, ['engraving', 'personalization', 'personalisation', 'inscription', 'engraved_text']) || '');
+  const giftNote = String(pick(row, ['gift_note', 'gift_message', 'message', 'note']) || '');
+  const orderId = String(pick(row, ['order_id', 'order_number', 'id', 'name']) || `row-${index + 1}`);
+  const amount = safeNumber(pick(row, ['amount', 'total', 'order_total', 'revenue', 'subtotal', 'price']));
+  const orderDate = String(pick(row, ['order_date', 'created_at', 'date', 'created']) || '');
+
+  return {
+    order_id: orderId,
+    email,
+    first_name: String(pick(row, ['first_name', 'firstname', 'customer_first_name']) || ''),
+    last_name: String(pick(row, ['last_name', 'lastname', 'customer_last_name']) || ''),
+    city,
+    state,
+    country,
+    product,
+    engraving,
+    gift_note: giftNote,
+    amount,
+    order_date: orderDate || null,
+    raw,
+  };
+}
+
+function toKustomerRecord(row, index) {
+  const raw = row;
+  const email = String(pick(row, ['email', 'customer_email', 'contact_email']) || '').toLowerCase().trim();
+  return {
+    conversation_id: String(pick(row, ['conversation_id', 'id', 'ticket_id']) || `row-${index + 1}`),
+    email,
+    subject: String(pick(row, ['subject', 'title']) || ''),
+    reason: String(pick(row, ['reason', 'contact_reason', 'category', 'type', 'tags']) || ''),
+    status: String(pick(row, ['status', 'conversation_status']) || ''),
+    created_at_text: String(pick(row, ['created_at', 'created', 'date']) || ''),
+    raw,
+  };
+}
+
+function toTrustpilotRecord(row, index) {
+  const raw = row;
+  const email = String(pick(row, ['email', 'customer_email', 'consumer_email']) || '').toLowerCase().trim();
+  return {
+    review_id: String(pick(row, ['review_id', 'id']) || `row-${index + 1}`),
+    email,
+    rating: safeNumber(pick(row, ['rating', 'stars', 'score'])),
+    title: String(pick(row, ['title', 'review_title']) || ''),
+    review_text: String(pick(row, ['review', 'text', 'content', 'body', 'review_text']) || ''),
+    created_at_text: String(pick(row, ['created_at', 'date', 'review_date']) || ''),
+    raw,
+  };
+}
+
+function countBy(items, keyGetter) {
+  const map = new Map();
+  items.forEach((item) => {
+    const key = String(keyGetter(item) || '').trim();
+    if (!key) return;
+    map.set(key, (map.get(key) || 0) + 1);
+  });
+  return Array.from(map.entries()).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+}
+
+function avg(items, key) {
+  const nums = items.map((item) => Number(item[key] || 0)).filter((n) => Number.isFinite(n) && n > 0);
+  if (!nums.length) return 0;
+  return nums.reduce((a, b) => a + b, 0) / nums.length;
+}
+
+function formatNumber(n) {
+  return new Intl.NumberFormat('en-US').format(Math.round(n || 0));
+}
+
+function formatMoney(n) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n || 0);
+}
+
 export default function CustomerInsightsPage() {
-  const [tab, setTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('overview');
+  const [status, setStatus] = useState('');
+  const [orders, setOrders] = useState([]);
+  const [kustomer, setKustomer] = useState([]);
+  const [trustpilot, setTrustpilot] = useState([]);
   const [question, setQuestion] = useState('');
-  const [uploads, setUploads] = useState({ orders: null, kustomer: null, trustpilot: null });
   const [answer, setAnswer] = useState('');
 
-  const uploadCount = useMemo(() => Object.values(uploads).filter(Boolean).length, [uploads]);
+  async function loadData() {
+    if (!supabase) {
+      setStatus('Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Vercel.');
+      return;
+    }
 
-  function handleFile(key, file) {
-    setUploads(prev => ({ ...prev, [key]: file ? { name: file.name, size: file.size } : null }));
+    setStatus('Loading Oak & Luna customer data...');
+    const [ordersRes, kustomerRes, trustpilotRes] = await Promise.all([
+      supabase.from(TABLES.orders).select('*').limit(5000),
+      supabase.from(TABLES.kustomer).select('*').limit(5000),
+      supabase.from(TABLES.trustpilot).select('*').limit(5000),
+    ]);
+
+    if (ordersRes.error || kustomerRes.error || trustpilotRes.error) {
+      setStatus(`Load failed: ${ordersRes.error?.message || kustomerRes.error?.message || trustpilotRes.error?.message}`);
+      return;
+    }
+
+    setOrders(ordersRes.data || []);
+    setKustomer(kustomerRes.data || []);
+    setTrustpilot(trustpilotRes.data || []);
+    setStatus('Data loaded from Supabase.');
   }
 
-  function askSmartAi(prompt) {
-    const q = (prompt || question || '').toLowerCase();
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  async function uploadFile(kind, file) {
+    if (!file || !supabase) return;
+    setStatus(`Uploading ${kind}...`);
+
+    const text = await file.text();
+    const objects = rowsToObjects(parseCsv(text));
+
+    const mapper = {
+      orders: toOrderRecord,
+      kustomer: toKustomerRecord,
+      trustpilot: toTrustpilotRecord,
+    }[kind];
+
+    const records = objects.map(mapper).filter(Boolean);
+
+    const { error: deleteError } = await supabase.from(TABLES[kind]).delete().neq('id', 0);
+    if (deleteError) {
+      setStatus(`Delete existing ${kind} failed: ${deleteError.message}`);
+      return;
+    }
+
+    for (const chunk of chunkArray(records, 500)) {
+      const { error } = await supabase.from(TABLES[kind]).insert(chunk);
+      if (error) {
+        setStatus(`Upload ${kind} failed: ${error.message}`);
+        return;
+      }
+    }
+
+    setStatus(`${kind} uploaded and saved permanently in Supabase: ${formatNumber(records.length)} rows.`);
+    await loadData();
+  }
+
+  const insights = useMemo(() => {
+    const totalRevenue = orders.reduce((sum, o) => sum + Number(o.amount || 0), 0);
+    const uniqueEmails = new Set(orders.map((o) => o.email).filter(Boolean));
+    const engravedOrders = orders.filter((o) => String(o.engraving || '').trim() !== '');
+    const giftOrders = orders.filter((o) => String(o.gift_note || '').trim() !== '');
+    const topProducts = countBy(orders, (o) => o.product).slice(0, 10);
+    const topCities = countBy(orders, (o) => o.city).slice(0, 10);
+    const topCountries = countBy(orders, (o) => o.country).slice(0, 10);
+    const topReasons = countBy(kustomer, (t) => t.reason).slice(0, 10);
+    const rating = avg(trustpilot, 'rating');
+
+    return {
+      customers: uniqueEmails.size,
+      orders: orders.length,
+      revenue: totalRevenue,
+      aov: orders.length ? totalRevenue / orders.length : 0,
+      engravedRate: orders.length ? (engravedOrders.length / orders.length) * 100 : 0,
+      giftRate: orders.length ? (giftOrders.length / orders.length) * 100 : 0,
+      ticketRate: orders.length ? (kustomer.length / orders.length) * 100 : 0,
+      rating,
+      topProducts,
+      topCities,
+      topCountries,
+      topReasons,
+    };
+  }, [orders, kustomer, trustpilot]);
+
+  function runSmartAnswer(customQuestion) {
+    const q = String(customQuestion || question || '').toLowerCase();
+
     if (!q.trim()) return;
-    let response = 'Smart AI answer will use the uploaded Orders, Kustomer and Trustpilot files. For now, this page is ready to connect the parsing layer and return customer insights from the selected datasets.';
-    if (q.includes('new york')) response = 'New York analysis will combine shipping city/state from Orders with product rows and personalization fields to rank top ordered products, revenue, AOV, gift notes and engraving patterns.';
-    if (q.includes('willow') || q.includes('engraving')) response = 'Willow Tag engraving analysis will calculate the average number of engraved values per order line, top engraved names/initials and the share of orders with personalization.';
-    if (q.includes('resize')) response = 'Resize analysis will match Kustomer reasons/tags with customer/order identifiers, then calculate ticket volume and ticket rate by product.';
-    if (q.includes('5-star') || q.includes('trustpilot') || q.includes('reviews')) response = 'Trustpilot analysis will extract positive themes such as quality, emotional gift value, personalization and customer service, then compare them with negative themes like delivery, sizing, damage or engraving expectations.';
-    setQuestion(prompt || question);
-    setAnswer(response);
+
+    if (q.includes('new york')) {
+      const ny = orders.filter((o) => String(o.city || '').toLowerCase().includes('new york') || String(o.state || '').toLowerCase() === 'ny');
+      const products = countBy(ny, (o) => o.product).slice(0, 5);
+      setAnswer(`Customers from New York have ${formatNumber(ny.length)} orders in the saved dataset. Top products: ${products.map((p) => `${p.name} (${p.count})`).join(', ') || 'not enough product data yet'}.`);
+      return;
+    }
+
+    if (q.includes('engraving') || q.includes('engrav')) {
+      const productName = q.includes('willow') ? 'willow' : '';
+      const filtered = productName ? orders.filter((o) => String(o.product || '').toLowerCase().includes(productName)) : orders;
+      const engraved = filtered.filter((o) => String(o.engraving || '').trim() !== '');
+      const rate = filtered.length ? (engraved.length / filtered.length) * 100 : 0;
+      setAnswer(`${productName ? 'Willow-related products' : 'All products'}: ${formatNumber(filtered.length)} orders, ${formatNumber(engraved.length)} with engraving, engraving rate ${rate.toFixed(1)}%.`);
+      return;
+    }
+
+    if (q.includes('resize')) {
+      const resizeTickets = kustomer.filter((t) => JSON.stringify(t.raw || t).toLowerCase().includes('resize'));
+      setAnswer(`I found ${formatNumber(resizeTickets.length)} resize-related Kustomer conversations in the saved dataset. Product-level matching needs email/order matching quality from both files.`);
+      return;
+    }
+
+    if (q.includes('5-star') || q.includes('five star') || q.includes('5 star')) {
+      const five = trustpilot.filter((r) => Number(r.rating) === 5);
+      setAnswer(`${formatNumber(five.length)} Trustpilot reviews are 5-star. Common positive themes to review manually: quality, meaningful gift, personalization, delivery, and customer service.`);
+      return;
+    }
+
+    setAnswer(`Based on saved data: ${formatNumber(orders.length)} orders, ${formatNumber(kustomer.length)} Kustomer conversations, and ${formatNumber(trustpilot.length)} Trustpilot reviews are currently available. Try asking about New York, engraving, resize, or 5-star reviews.`);
   }
+
+  const tabs = [
+    ['overview', 'Overview'],
+    ['geography', 'Geography'],
+    ['products', 'Products'],
+    ['service', 'Customer Service'],
+    ['reviews', 'Reviews'],
+    ['smart-ai', 'Smart AI'],
+  ];
 
   return (
-    <div style={styles.page}>
-      <div style={styles.shell}>
-        <div style={styles.breadcrumb}><Link href="/">Home</Link><span>›</span><Link href="/brands">Brands</Link><span>›</span><Link href="/brands/oak-and-luna">Oak & Luna</Link><span>›</span>Who are our customers</div>
-
-        <section style={styles.hero}>
-          <div>
-            <div style={styles.badge}>Oak & Luna Brand Intelligence</div>
-            <h1 style={styles.h1}>Who Are Our Customers?</h1>
-            <p style={styles.lead}>Understand Oak & Luna customers through order behavior, personalization, customer service interactions and Trustpilot reviews.</p>
-            <div style={styles.heroActions}>
-              <button style={styles.primaryButton} onClick={() => setTab('smart-ai')}>Open Smart AI</button>
-              <button style={styles.secondaryButton} onClick={() => setTab('overview')}>View analysis</button>
-            </div>
-          </div>
-          <div style={styles.dataCard}>
-            <div style={styles.dataTitle}>Data sources</div>
-            <UploadRow title="Orders" accept=".xlsx,.csv" file={uploads.orders} onChange={f => handleFile('orders', f)} />
-            <UploadRow title="Kustomer" accept=".csv" file={uploads.kustomer} onChange={f => handleFile('kustomer', f)} />
-            <UploadRow title="Trustpilot" accept=".csv" file={uploads.trustpilot} onChange={f => handleFile('trustpilot', f)} />
-            <div style={styles.sourceStatus}>{uploadCount}/3 sources ready</div>
-          </div>
-        </section>
-
-        <section style={styles.kpis}>
-          <Kpi label="Orders" value={seedMetrics.orders} />
-          <Kpi label="Kustomer tickets" value={seedMetrics.tickets} />
-          <Kpi label="Trustpilot reviews" value={seedMetrics.reviews} />
-          <Kpi label="Top contact reason" value={seedMetrics.topReason} />
-        </section>
-
-        <nav style={styles.tabs}>
-          {[
-            ['overview','Overview'], ['geography','Geography'], ['products','Products'], ['gifts','Gift Analysis'],
-            ['service','Customer Service'], ['reviews','Reviews'], ['personas','Personas'], ['smart-ai','Smart AI']
-          ].map(([id, label]) => <button key={id} onClick={() => setTab(id)} style={tab === id ? styles.tabActive : styles.tab}>{label}</button>)}
-        </nav>
-
-        <main style={styles.panel}>
-          {tab === 'overview' && <Overview />}
-          {tab === 'geography' && <Geography />}
-          {tab === 'products' && <Products />}
-          {tab === 'gifts' && <Gifts />}
-          {tab === 'service' && <Service />}
-          {tab === 'reviews' && <Reviews />}
-          {tab === 'personas' && <Personas />}
-          {tab === 'smart-ai' && <SmartAi question={question} setQuestion={setQuestion} ask={askSmartAi} answer={answer} />}
-        </main>
+    <div className="oakPage">
+      <div className="hero">
+        <div>
+          <p className="eyebrow">Oak & Luna Customer Intelligence</p>
+          <h1>Who Are Our Customers?</h1>
+          <p className="heroText">
+            Analyze Oak & Luna customers using saved order data, Kustomer conversations, and Trustpilot reviews.
+          </p>
+        </div>
+        <div className="heroBadge">Supabase persistent V1</div>
       </div>
+
+      <div className="uploadBox">
+        <div>
+          <h2>Upload data once</h2>
+          <p>Each upload replaces the previous dataset for that source and stays saved in Supabase.</p>
+        </div>
+        <label>Orders CSV<input type="file" accept=".csv" onChange={(e) => uploadFile('orders', e.target.files?.[0])} /></label>
+        <label>Kustomer CSV<input type="file" accept=".csv" onChange={(e) => uploadFile('kustomer', e.target.files?.[0])} /></label>
+        <label>Trustpilot CSV<input type="file" accept=".csv" onChange={(e) => uploadFile('trustpilot', e.target.files?.[0])} /></label>
+      </div>
+
+      {status && <div className="status">{status}</div>}
+
+      <div className="kpis">
+        <div><span>Total customers</span><strong>{formatNumber(insights.customers)}</strong></div>
+        <div><span>Total orders</span><strong>{formatNumber(insights.orders)}</strong></div>
+        <div><span>Revenue</span><strong>{formatMoney(insights.revenue)}</strong></div>
+        <div><span>AOV</span><strong>{formatMoney(insights.aov)}</strong></div>
+        <div><span>Engraved orders</span><strong>{insights.engravedRate.toFixed(1)}%</strong></div>
+        <div><span>Gift note orders</span><strong>{insights.giftRate.toFixed(1)}%</strong></div>
+        <div><span>Ticket rate</span><strong>{insights.ticketRate.toFixed(1)}%</strong></div>
+        <div><span>Trustpilot avg.</span><strong>{insights.rating.toFixed(1)}</strong></div>
+      </div>
+
+      <div className="tabs">
+        {tabs.map(([id, label]) => (
+          <button key={id} className={activeTab === id ? 'active' : ''} onClick={() => setActiveTab(id)}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <section className="panel">
+        {activeTab === 'overview' && (
+          <>
+            <h2>Customer Summary</h2>
+            <p>
+              Oak & Luna customers are analyzed across orders, product personalization, support contacts, and reviews.
+              This V1 focuses on reliable saved metrics and prepares the structure for deeper AI insights.
+            </p>
+            <div className="grid2">
+              <List title="Top Countries" items={insights.topCountries} />
+              <List title="Top Contact Reasons" items={insights.topReasons} />
+            </div>
+          </>
+        )}
+
+        {activeTab === 'geography' && (
+          <div className="grid2">
+            <List title="Top Cities" items={insights.topCities} />
+            <List title="Top Countries" items={insights.topCountries} />
+          </div>
+        )}
+
+        {activeTab === 'products' && <List title="Best Selling Products" items={insights.topProducts} />}
+
+        {activeTab === 'service' && <List title="Kustomer Contact Reasons" items={insights.topReasons} />}
+
+        {activeTab === 'reviews' && (
+          <>
+            <h2>Trustpilot Reviews</h2>
+            <p>Average rating: {insights.rating.toFixed(1)} based on {formatNumber(trustpilot.length)} saved reviews.</p>
+            <List title="Review themes placeholder" items={[
+              { name: 'Product quality', count: trustpilot.length },
+              { name: 'Meaningful gifts', count: trustpilot.length },
+              { name: 'Customer service', count: trustpilot.length },
+            ]} />
+          </>
+        )}
+
+        {activeTab === 'smart-ai' && (
+          <>
+            <h2>Smart AI Mode</h2>
+            <p>V1 uses deterministic answers from saved Supabase data. Later, this can be connected to OpenAI for deeper natural-language analysis.</p>
+            <div className="askBox">
+              <input value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Ask anything about Oak & Luna customers..." />
+              <button onClick={() => runSmartAnswer()}>Ask</button>
+            </div>
+            <div className="chips">
+              {sampleQuestions.map((q) => (
+                <button key={q} onClick={() => { setQuestion(q); runSmartAnswer(q); }}>{q}</button>
+              ))}
+            </div>
+            {answer && <div className="answer">{answer}</div>}
+          </>
+        )}
+      </section>
+
+      <style jsx>{`
+        .oakPage { min-height: 100vh; padding: 32px; background: #f7f3ef; color: #211a16; font-family: Inter, Arial, sans-serif; }
+        .hero { display: flex; justify-content: space-between; gap: 24px; align-items: center; padding: 32px; border-radius: 28px; background: linear-gradient(135deg, #fff, #eaded2); box-shadow: 0 20px 45px rgba(60, 40, 25, 0.08); }
+        .eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: 12px; font-weight: 700; color: #8a684f; }
+        h1 { margin: 8px 0; font-size: 44px; line-height: 1; }
+        h2 { margin: 0 0 10px; }
+        .heroText { max-width: 720px; color: #6f5b4c; font-size: 17px; }
+        .heroBadge { background: #211a16; color: #fff; padding: 12px 16px; border-radius: 999px; font-weight: 700; white-space: nowrap; }
+        .uploadBox { display: grid; grid-template-columns: 1.4fr repeat(3, 1fr); gap: 16px; margin: 22px 0; padding: 22px; background: #fff; border-radius: 22px; box-shadow: 0 12px 30px rgba(60, 40, 25, 0.06); align-items: center; }
+        .uploadBox p { margin: 0; color: #6f5b4c; }
+        label { display: grid; gap: 8px; font-weight: 700; font-size: 14px; }
+        input[type=file] { font-size: 13px; }
+        .status { padding: 14px 18px; border-radius: 14px; background: #fff8dc; border: 1px solid #eadc9c; margin-bottom: 18px; }
+        .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 20px 0; }
+        .kpis div { background: #fff; padding: 18px; border-radius: 18px; box-shadow: 0 10px 22px rgba(60, 40, 25, 0.05); }
+        .kpis span { display: block; color: #7c695a; font-size: 13px; margin-bottom: 8px; }
+        .kpis strong { font-size: 26px; }
+        .tabs { display: flex; gap: 10px; flex-wrap: wrap; margin: 24px 0; }
+        .tabs button, .askBox button, .chips button { border: 0; border-radius: 999px; padding: 11px 16px; background: #fff; cursor: pointer; font-weight: 700; color: #3a2a20; }
+        .tabs button.active { background: #211a16; color: #fff; }
+        .panel { background: #fff; border-radius: 24px; padding: 28px; box-shadow: 0 18px 42px rgba(60, 40, 25, 0.08); }
+        .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+        .list { border: 1px solid #eee3d9; border-radius: 18px; overflow: hidden; }
+        .list h3 { margin: 0; padding: 16px; background: #fbf8f5; }
+        .row { display: flex; justify-content: space-between; gap: 16px; padding: 12px 16px; border-top: 1px solid #f0e8df; }
+        .row span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .askBox { display: flex; gap: 10px; margin: 18px 0; }
+        .askBox input { flex: 1; padding: 15px 18px; border: 1px solid #e1d4c8; border-radius: 999px; font-size: 15px; }
+        .askBox button { background: #211a16; color: #fff; padding-inline: 24px; }
+        .chips { display: flex; gap: 10px; flex-wrap: wrap; }
+        .chips button { background: #f7f3ef; }
+        .answer { margin-top: 18px; padding: 18px; background: #f7f3ef; border-radius: 18px; line-height: 1.5; }
+        @media (max-width: 900px) {
+          .oakPage { padding: 18px; }
+          .hero, .uploadBox, .grid2 { grid-template-columns: 1fr; display: grid; }
+          .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          h1 { font-size: 34px; }
+        }
+      `}</style>
     </div>
   );
 }
 
-function UploadRow({ title, accept, file, onChange }) {
-  return <label style={styles.uploadRow}><span>{title}</span><input type="file" accept={accept} style={{ display: 'none' }} onChange={e => onChange(e.target.files?.[0])} /><strong>{file ? file.name : 'Upload'}</strong></label>;
+function List({ title, items }) {
+  return (
+    <div className="list">
+      <h3>{title}</h3>
+      {(items || []).length === 0 && <div className="row"><span>No data yet</span><strong>-</strong></div>}
+      {(items || []).slice(0, 10).map((item) => (
+        <div className="row" key={item.name}>
+          <span>{item.name || 'Unknown'}</span>
+          <strong>{formatNumber(item.count)}</strong>
+        </div>
+      ))}
+    </div>
+  );
 }
-function Kpi({ label, value }) { return <div style={styles.kpi}><div style={styles.kpiLabel}>{label}</div><div style={styles.kpiValue}>{value}</div></div>; }
-function SectionTitle({ title, subtitle }) { return <><h2 style={styles.h2}>{title}</h2>{subtitle && <p style={styles.sub}>{subtitle}</p>}</>; }
-function SimpleTable({ rows, headers }) { return <table style={styles.table}><thead><tr>{headers.map(h => <th key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((r,i) => <tr key={i}>{r.map((c,j) => <td key={j}>{c}</td>)}</tr>)}</tbody></table>; }
-
-function Overview() { return <><SectionTitle title="Executive Summary" subtitle="A customer intelligence layer for Oak & Luna teams." /><div style={styles.grid2}><Insight title="Customer behavior" text="Customers buy personalized jewelry with strong gift intent. Orders, engravings and gift notes should be classified into occasions, recipients and product families." /><Insight title="Voice of customer" text="Kustomer and Trustpilot help explain the full journey: what customers buy, why they contact us, and what creates satisfaction or friction." /></div></>; }
-function Geography() { return <><SectionTitle title="Geographic Insights" subtitle="Analyze customers by country, state and city once the order file is loaded." /><SimpleTable headers={['Area','Orders','Revenue','AOV']} rows={[['United States','To calculate','To calculate','To calculate'],['New York','Smart AI ready','Smart AI ready','Smart AI ready'],['California','Smart AI ready','Smart AI ready','Smart AI ready']]} /></>; }
-function Products() { return <><SectionTitle title="Product & Personalization Insights" subtitle="Best sellers, revenue, engraving depth and product health." /><div style={styles.grid2}><Insight title="Most engraved products" text="Average engraving count, personalization rate, top names, initials, dates and birthstones." /><Insight title="Product performance" text="Orders, revenue, AOV, support ticket rate and Trustpilot themes by product." /></div></>; }
-function Gifts() { return <><SectionTitle title="Gift Analysis" subtitle="Classify intent from gift notes and personalized content." /><div style={styles.tags}>{['Birthday','Mother’s Day','Anniversary','Wedding','Christmas','Valentine’s Day','New Baby','Self purchase'].map(t => <span key={t}>{t}</span>)}</div></>; }
-function Service() { return <><SectionTitle title="Customer Service Insights" subtitle="Based on Kustomer data." /><SimpleTable headers={['Contact reason','Volume']} rows={contactReasons.map(([a,b]) => [a, b.toLocaleString()])} /></>; }
-function Reviews() { return <><SectionTitle title="Trustpilot Insights" subtitle="Themes extracted from customer reviews." /><div style={styles.tags}>{reviewThemes.map(t => <span key={t}>{t}</span>)}</div></>; }
-function Personas() { return <><SectionTitle title="AI Customer Personas" subtitle="Generated from order, review and support patterns." /><div style={styles.grid2}>{['The Gift Giver','The Young Mom','The Self-Purchaser','The Loyal Customer'].map((p,i) => <Insight key={p} title={p} text={['Buys personalized jewelry for meaningful occasions and often includes gift notes.','Buys family and children-name jewelry with high personalization usage.','Buys for herself, usually with stronger repeat potential and higher AOV.','Multiple orders, positive review history and lower support friction.'][i]} />)}</div></>; }
-function SmartAi({ question, setQuestion, ask, answer }) { return <><SectionTitle title="Smart AI Mode" subtitle="Ask natural-language questions about Oak & Luna customers." /><div style={styles.aiBox}><textarea value={question} onChange={e => setQuestion(e.target.value)} placeholder="Ask anything about customers, locations, products, engravings, reviews or tickets..." style={styles.textarea} /><button style={styles.primaryButton} onClick={() => ask()}>Ask Smart AI</button></div><div style={styles.examples}>{aiExamples.map(x => <button key={x} onClick={() => ask(x)}>{x}</button>)}</div>{answer && <div style={styles.answer}>{answer}</div>}</>; }
-function Insight({ title, text }) { return <div style={styles.insight}><h3>{title}</h3><p>{text}</p></div>; }
-
-const styles = {
-  page: { minHeight: '100vh', background: '#F7F3EF', color: '#202020', fontFamily: 'Inter, system-ui, -apple-system, Segoe UI, sans-serif' },
-  shell: { maxWidth: 1180, margin: '0 auto', padding: '28px 18px 60px' },
-  breadcrumb: { display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, color: '#756A62', marginBottom: 18 },
-  hero: { display: 'grid', gridTemplateColumns: '1.5fr .9fr', gap: 22, alignItems: 'stretch' },
-  badge: { display: 'inline-block', padding: '7px 11px', borderRadius: 999, background: '#E8D9CC', color: '#7B563C', fontWeight: 800, fontSize: 12, marginBottom: 12 },
-  h1: { fontSize: 46, lineHeight: 1.02, margin: '0 0 12px', letterSpacing: '-1.5px' },
-  lead: { fontSize: 18, color: '#5E5650', maxWidth: 680, lineHeight: 1.55, marginBottom: 22 },
-  heroActions: { display: 'flex', gap: 12, flexWrap: 'wrap' },
-  primaryButton: { border: 0, borderRadius: 12, padding: '12px 18px', background: '#8B5E42', color: 'white', fontWeight: 800, cursor: 'pointer' },
-  secondaryButton: { border: '1px solid #D8C7B8', borderRadius: 12, padding: '12px 18px', background: 'white', color: '#533D2F', fontWeight: 800, cursor: 'pointer' },
-  dataCard: { background: 'white', border: '1px solid #E6DAD0', borderRadius: 22, padding: 18, boxShadow: '0 12px 32px rgba(64,45,31,.08)' },
-  dataTitle: { fontSize: 16, fontWeight: 900, marginBottom: 12 },
-  uploadRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, border: '1px dashed #D8C7B8', borderRadius: 14, padding: 12, marginBottom: 10, cursor: 'pointer', fontSize: 13 },
-  sourceStatus: { fontSize: 12, color: '#756A62', marginTop: 10 },
-  kpis: { display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, margin: '24px 0' },
-  kpi: { background: 'white', border: '1px solid #E6DAD0', borderRadius: 18, padding: 18 },
-  kpiLabel: { fontSize: 12, color: '#756A62', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.04em' },
-  kpiValue: { fontSize: 26, fontWeight: 900, marginTop: 8 },
-  tabs: { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 },
-  tab: { border: '1px solid #E1D4C8', background: 'white', color: '#67584D', padding: '10px 13px', borderRadius: 999, cursor: 'pointer', fontWeight: 800 },
-  tabActive: { border: '1px solid #8B5E42', background: '#8B5E42', color: 'white', padding: '10px 13px', borderRadius: 999, cursor: 'pointer', fontWeight: 800 },
-  panel: { background: 'white', border: '1px solid #E6DAD0', borderRadius: 24, padding: 24, boxShadow: '0 12px 32px rgba(64,45,31,.06)' },
-  h2: { fontSize: 28, margin: '0 0 6px' }, sub: { color: '#695F58', marginTop: 0 },
-  grid2: { display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 14, marginTop: 16 },
-  insight: { background: '#FBF8F5', border: '1px solid #EFE5DC', borderRadius: 18, padding: 18 },
-  table: { width: '100%', borderCollapse: 'collapse', marginTop: 16 },
-  tags: { display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 18 },
-  aiBox: { display: 'flex', gap: 12, alignItems: 'flex-start', marginTop: 16 },
-  textarea: { flex: 1, minHeight: 90, border: '1px solid #D8C7B8', borderRadius: 14, padding: 14, fontSize: 15 },
-  examples: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 },
-  answer: { marginTop: 18, padding: 16, borderRadius: 16, background: '#F7F3EF', border: '1px solid #E6DAD0', lineHeight: 1.5 }
-};
