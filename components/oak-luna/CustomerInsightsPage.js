@@ -180,11 +180,17 @@ export default function CustomerInsightsPage() {
         .threeCols { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
         .twoCols { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
         .topGap { margin-top:16px; }
-        .list { border:1px solid #eee3d9; border-radius:18px; overflow:hidden; background:#fff; }
-        .list h3 { margin:0; padding:16px; background:#fbf8f5; }
-        .row { display:grid; grid-template-columns:1fr auto; gap:14px; padding:12px 16px; border-top:1px solid #f0e8df; align-items:center; }
-        .stateRow { grid-template-columns:1fr auto auto auto; }
-        .row span:first-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .list { border:1px solid #eee3d9; border-radius:18px; overflow:hidden; background:#fff; box-shadow:0 10px 24px rgba(60,40,25,.045); }
+        .list h3 { margin:0; padding:16px 18px; background:#fbf8f5; border-bottom:1px solid #efe5dc; font-size:18px; }
+        .emptyRow { padding:14px 18px; color:#8d7a6b; }
+        .rankRow { display:grid; grid-template-columns:34px minmax(0,1fr) auto; gap:12px; padding:12px 18px; border-top:1px solid #f0e8df; align-items:center; }
+        .rank { width:24px; height:24px; border-radius:999px; background:#f0e6dd; color:#6f5b4c; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; }
+        .rankName { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .tableHeader { display:grid; grid-template-columns:minmax(150px,1.4fr) .7fr .8fr .7fr; gap:12px; padding:11px 18px; background:#fffaf6; color:#8d7a6b; font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; border-bottom:1px solid #f0e8df; }
+        .stateRow { display:grid; grid-template-columns:minmax(150px,1.4fr) .7fr .8fr .7fr; gap:12px; padding:12px 18px; border-top:1px solid #f0e8df; align-items:center; }
+        .stateRow span { white-space:nowrap; }
+        .nameCell { display:flex; align-items:center; gap:10px; min-width:0; }
+        .nameCell strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .productRows { display:grid; gap:8px; padding:14px; }
         .productRow { display:grid; grid-template-columns:1.5fr .7fr .8fr .7fr; gap:8px; padding:12px; background:#f7f3ef; border-radius:14px; align-items:center; }
         .narrative { padding:20px; box-shadow:none; border:1px solid #eee3d9; }
@@ -194,7 +200,7 @@ export default function CustomerInsightsPage() {
         .chips { display:flex; gap:10px; flex-wrap:wrap; }
         .chips button { background:#f7f3ef; }
         .answer { margin-top:18px; padding:18px; background:#f7f3ef; border-radius:18px; line-height:1.5; }
-        @media(max-width:1000px){ .page{padding:18px;} .hero,.kpis,.dnaGrid,.personaGrid,.threeCols,.twoCols{grid-template-columns:1fr;display:grid;} .stateRow{grid-template-columns:1fr;} h1{font-size:34px;} }
+        @media(max-width:1000px){ .page{padding:18px;} .hero,.kpis,.dnaGrid,.personaGrid,.threeCols,.twoCols{grid-template-columns:1fr;display:grid;} .stateRow,.tableHeader{grid-template-columns:1fr;} .tableHeader span:not(:first-child){display:none;} h1{font-size:34px;} }
       `}</style>
     </div>
   );
@@ -203,10 +209,44 @@ export default function CustomerInsightsPage() {
 function Panel({ title, children }) { return <section className="panel"><h2 className="panelTitle">{title}</h2>{children}</section>; }
 function MetricBlock({ label, value, note }) { return <div className="metric"><span>{label}</span><strong>{value}</strong><small>{note}</small></div>; }
 function RankedList({ title, items = [] }) {
-  return <div className="list"><h3>{title}</h3>{(!items || items.length === 0) && <div className="row"><span>No data yet</span><b>-</b></div>}{(items || []).slice(0,15).map((item) => <div className="row" key={`${title}-${item.name}`}><span>{item.name || 'Unknown'}</span><b>{formatNumber(item.count)}</b></div>)}</div>;
+  return (
+    <div className="list">
+      <h3>{title}</h3>
+      {(!items || items.length === 0) && <div className="emptyRow">No data yet</div>}
+      {(items || []).slice(0,15).map((item, index) => (
+        <div className="rankRow" key={`${title}-${item.name}`}>
+          <span className="rank">{index + 1}</span>
+          <span className="rankName">{item.name || 'Unknown'}</span>
+          <b>{formatNumber(item.count || item.orders || 0)}</b>
+        </div>
+      ))}
+    </div>
+  );
 }
 function StateTable({ title, items = [] }) {
-  return <div className="list"><h3>{title}</h3>{(!items || items.length === 0) && <div className="row"><span>No data yet</span><b>-</b></div>}{(items || []).slice(0,15).map((item) => <div className="row stateRow" key={`${title}-${item.name}`}><span>{item.name || 'Unknown'}</span><b>{formatNumber(item.orders || item.count)}</b><b>{formatMoney(item.revenue || 0)}</b><b>{formatMoney(item.aov || 0)}</b></div>)}</div>;
+  return (
+    <div className="list">
+      <h3>{title}</h3>
+      <div className="tableHeader">
+        <span>State / City</span>
+        <span>Orders</span>
+        <span>Revenue</span>
+        <span>AOV</span>
+      </div>
+      {(!items || items.length === 0) && <div className="emptyRow">No data yet</div>}
+      {(items || []).slice(0,15).map((item, index) => (
+        <div className="stateRow" key={`${title}-${item.name}`}>
+          <div className="nameCell">
+            <span className="rank">{index + 1}</span>
+            <strong>{item.name || 'Unknown'}</strong>
+          </div>
+          <span>{formatNumber(item.orders || item.count || 0)}</span>
+          <span>{formatMoney(item.revenue || 0)}</span>
+          <span>{formatMoney(item.aov || 0)}</span>
+        </div>
+      ))}
+    </div>
+  );
 }
 function ProductTable({ title, items = [] }) {
   return <div className="list"><h3>{title}</h3><div className="productRows">{(items || []).slice(0,15).map((item) => <div className="productRow" key={item.name}><strong>{item.name}</strong><span>{formatNumber(item.orders)} orders</span><span>{formatMoney(item.revenue)}</span><span>{formatPercent(item.personalizationRate)}</span></div>)}{(!items || items.length === 0) && <div className="row"><span>No data yet</span><b>-</b></div>}</div></div>;
