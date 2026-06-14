@@ -1733,70 +1733,75 @@ function SupplierInfo() {
 
 
 const AI_PROVIDER_COLORS = {
-  openai: { name:"OpenAI", tool:"ChatGPT", icon:"◎", bg:"#ecfdf5", border:"#10a37f", text:"#065f46", dark:"#047857" },
-  gemini: { name:"Google", tool:"Gemini", icon:"G✦", bg:"#eff6ff", border:"#4285f4", text:"#1d4ed8", dark:"#2563eb" },
-  claude: { name:"Anthropic", tool:"Claude", icon:"C", bg:"#fff7ed", border:"#d97706", text:"#92400e", dark:"#c2410c" }
+  openai: { name:"OpenAI", tool:"ChatGPT", icon:"◎", bg:"#ecfdf5", border:"#10A37F", text:"#065f46", dark:"#10A37F" },
+  gemini: { name:"Google", tool:"Gemini", icon:"G✦", bg:"#eff6ff", border:"#4285F4", text:"#1d4ed8", dark:"#4285F4" },
+  claude: { name:"Anthropic", tool:"Claude", icon:"C", bg:"#fff7ed", border:"#D97706", text:"#92400e", dark:"#D97706" },
+  copilot: { name:"Microsoft", tool:"Copilot", icon:"M", bg:"#eff6ff", border:"#0078D4", text:"#075985", dark:"#0078D4" }
 };
 
 const AI_PLATFORM_ROWS = [
-  ["Business Offer", "ChatGPT Business", "Gemini Business", "Claude Team"],
-  ["Enterprise Offer", "ChatGPT Enterprise", "Gemini Enterprise", "Claude Enterprise"],
-  ["Business Price", "~$25/user/month", "~$20-21/user/month*", "~$20-30/user/month"],
-  ["Enterprise Price", "Custom quote", "~$45/user/month or custom*", "Custom quote"],
-  ["Approx. Cost (100 users/year)", "~$30,000", "~$24,000-$25,200*", "~$24,000-$36,000"],
-  ["Enterprise vs Business", "SSO, SCIM, audit logs, advanced security, higher limits and enterprise support", "Higher limits, governance controls, advanced security and Workspace administration", "Higher limits, governance, advanced administration and enterprise support"],
-  ["GDPR Compliance", "Yes", "Yes", "Yes"],
-  ["Shared Company Data Used For Training", "No", "No", "No"],
-  ["Typical Negotiation Point", "Usually from ~100+ users", "Often through existing Google Workspace agreement", "Usually from ~100+ users"],
-  ["Best Fit", "Best all-rounder", "Best Google ecosystem", "Best for long documents"],
-  ["Main Strength", "Analysis, reporting, coding and content creation", "Native Gmail, Docs, Sheets, Drive and Meet integration", "Legal, HR, policies and long-document review"]
+  ["Business Offer", "ChatGPT Business", "Gemini Business", "Claude Team", "Microsoft 365 Copilot"],
+  ["Enterprise Offer", "ChatGPT Enterprise", "Gemini Enterprise", "Claude Enterprise", "Microsoft 365 Copilot / Copilot Studio"],
+  ["Business Price", "~$25/user/month", "~$20-21/user/month*", "~$20-30/user/month", "~$30/user/month*"],
+  ["Enterprise Price", "Custom quote", "~$45/user/month or custom*", "Custom quote", "Custom quote / Microsoft agreement"],
+  ["Approx. Cost (100 users/year)", "~$30,000", "~$24,000-$25,200*", "~$24,000-$36,000", "~$36,000*"],
+  ["Enterprise vs Business", "SSO, SCIM, audit logs, advanced security, higher limits and enterprise support", "Higher limits, governance controls, advanced security and Workspace administration", "Higher limits, governance, advanced administration and enterprise support", "Deep Microsoft 365 governance, Teams/Outlook/Excel integration and Copilot Studio agents"],
+  ["GDPR Compliance", "Yes", "Yes", "Yes", "Yes"],
+  ["Shared Company Data Used For Training", "No", "No", "No", "No"],
+  ["Typical Negotiation Point", "Usually from ~100+ users", "Often through existing Google Workspace agreement", "Usually from ~100+ users", "Usually through Microsoft 365 enterprise agreement"],
+  ["Best Fit", "Best all-rounder", "Best Google ecosystem", "Best for long documents", "Best Microsoft 365 ecosystem"],
+  ["Main Strength", "Analysis, reporting, coding and content creation", "Native Gmail, Docs, Sheets, Drive and Meet integration", "Legal, HR, policies and long-document review", "Excel, PowerPoint, Outlook, Teams and enterprise workflows"]
 ];
 
 const AI_DEPARTMENT_COMPARISON = [
-  { department:"Customer Service", openai:"OpenAI ChatGPT", gemini:"OpenAI ChatGPT", decision:"OpenAI ChatGPT", provider:"openai", why:"Best for conversational fluency, ticket analysis, SOP creation and fast response drafting." },
-  { department:"Marketing", openai:"OpenAI ChatGPT", gemini:"OpenAI ChatGPT", decision:"OpenAI ChatGPT", provider:"openai", why:"Strongest for campaign ideas, punchy copy, research summaries and image generation workflows." },
-  { department:"Creative", openai:"OpenAI ChatGPT", gemini:"Anthropic Claude", decision:"Anthropic Claude", provider:"claude", why:"Best for nuanced, natural writing; use ChatGPT as a complement when image generation is required." },
-  { department:"Brand", openai:"Anthropic Claude", gemini:"Google Gemini", decision:"Google Gemini", provider:"gemini", why:"Best when brand teams need Google Search context, Docs/Drive access and market visibility." },
-  { department:"Legal & HR", openai:"Anthropic Claude", gemini:"Anthropic Claude", decision:"Anthropic Claude", provider:"claude", why:"Strongest for long policies, contracts, HR documents and careful text review." },
-  { department:"Finance", openai:"OpenAI ChatGPT", gemini:"OpenAI ChatGPT", decision:"OpenAI ChatGPT", provider:"openai", why:"Best for spreadsheet analysis, reporting support, calculations and business insights." },
-  { department:"Operations / Factory", openai:"Google Gemini", gemini:"Google Gemini", decision:"Google Gemini", provider:"gemini", why:"Best fit for Google Sheets, operational documents, visual schemas and large process logs." },
-  { department:"Supply Chain", openai:"Google Gemini", gemini:"Google Gemini", decision:"Google Gemini", provider:"gemini", why:"Best for collaborative planning and logistics workflows inside Google Workspace." },
-  { department:"IT / Engineering", openai:"OpenAI ChatGPT", gemini:"Anthropic Claude", decision:"Anthropic Claude", provider:"claude", why:"Strong for complex coding, debugging and technical reasoning; ChatGPT remains a strong all-round alternative." },
-  { department:"Leadership", openai:"OpenAI ChatGPT", gemini:"OpenAI ChatGPT", decision:"OpenAI ChatGPT", provider:"openai", why:"Best overall for decision support, executive summaries, analysis and market research workflows." }
+  { department:"Customer Service", openai:"OpenAI ChatGPT", gemini:"OpenAI ChatGPT", copilot:"Microsoft Copilot", decision:"OpenAI ChatGPT", provider:"openai", why:"Best for conversational fluency, ticket analysis, SOP creation and fast response drafting." },
+  { department:"Marketing", openai:"OpenAI ChatGPT", gemini:"OpenAI ChatGPT", copilot:"OpenAI ChatGPT", decision:"OpenAI ChatGPT", provider:"openai", why:"Strongest for campaign ideas, punchy copy, research summaries and image generation workflows." },
+  { department:"Creative", openai:"OpenAI ChatGPT", gemini:"Anthropic Claude", copilot:"OpenAI ChatGPT", decision:"Anthropic Claude", provider:"claude", why:"Best for nuanced, natural writing; use ChatGPT as a complement when image generation is required." },
+  { department:"Brand", openai:"Anthropic Claude", gemini:"Google Gemini", copilot:"Microsoft Copilot", decision:"Google Gemini", provider:"gemini", why:"Best when brand teams need Google Search context, Docs/Drive access and market visibility." },
+  { department:"Legal & HR", openai:"Anthropic Claude", gemini:"Anthropic Claude", copilot:"Microsoft Copilot", decision:"Anthropic Claude", provider:"claude", why:"Strongest for long policies, contracts, HR documents and careful text review." },
+  { department:"Finance", openai:"OpenAI ChatGPT", gemini:"OpenAI ChatGPT", copilot:"Microsoft Copilot", decision:"Microsoft Copilot", provider:"copilot", why:"Best for finance teams working heavily in Excel, PowerPoint, Outlook and Microsoft 365." },
+  { department:"Operations / Factory", openai:"Google Gemini", gemini:"Google Gemini", copilot:"Microsoft Copilot", decision:"Google Gemini", provider:"gemini", why:"Best fit for Google Sheets, operational documents, visual schemas and large process logs." },
+  { department:"Supply Chain", openai:"Google Gemini", gemini:"Google Gemini", copilot:"Microsoft Copilot", decision:"Google Gemini", provider:"gemini", why:"Best for collaborative planning and logistics workflows inside Google Workspace." },
+  { department:"IT / Engineering", openai:"OpenAI ChatGPT", gemini:"Anthropic Claude", copilot:"Microsoft Copilot", decision:"Anthropic Claude", provider:"claude", why:"Strong for complex coding, debugging and technical reasoning; ChatGPT remains a strong all-round alternative." },
+  { department:"Leadership", openai:"OpenAI ChatGPT", gemini:"OpenAI ChatGPT", copilot:"Microsoft Copilot", decision:"OpenAI ChatGPT", provider:"openai", why:"Best overall for decision support, executive summaries, analysis and market research workflows." }
 ];
 
-const AI_FEATURE_COMPARISON = [
+const AI_CAPABILITIES_ROWS = [
+  ["Chat", "✅ Excellent", "✅ Excellent", "✅ Excellent", "✅ Excellent"],
+  ["Projects / Workspaces", "⭐ Mature Projects", "⚠️ Basic Workspace", "✅ Projects", "⚠️ Limited"],
+  ["Custom AI Assistants", "⭐ GPTs", "⭐ Gems", "⚠️ Limited", "⚠️ Copilot Agents"],
+  ["AI Agents", "⭐ Mature", "✅ Emerging", "⚠️ Basic", "⭐ Strong"],
+  ["Knowledge Base", "⭐ Upload files & instructions", "⭐ Google Drive integration", "⭐ Large document context", "⭐ Microsoft 365 integration"],
+  ["Web Research", "⭐ Deep Research", "⭐ Deep Research", "⚠️ Standard", "✅ Research Skills"],
+  ["Document Analysis", "⭐ Excellent", "⭐ Excellent", "⭐ Best-in-class", "⭐ Excellent"],
+  ["Image Generation", "⭐ Native", "⭐ Native", "❌ Not native", "⚠️ Via Designer"],
+  ["Coding & Automation", "⭐ Excellent", "✅ Strong", "⭐ Excellent", "✅ Strong"],
+  ["Excel / Sheets Analysis", "⭐ Excellent", "⭐ Excellent", "⚠️ Good", "⭐ Best"],
+  ["PowerPoint Creation", "⚠️ Manual", "⚠️ Manual", "❌", "⭐ Best"],
+  ["Google Workspace Integration", "⚠️ Limited", "⭐ Native", "❌", "❌"],
+  ["Microsoft 365 Integration", "⚠️ Limited", "❌", "❌", "⭐ Native"]
+];
+
+const AI_CAPABILITY_EXPLAINERS = [
   {
-    feature:"Chat",
-    openai:"+ Best all-round assistant for analysis, drafting, data and coding. - Needs governance to avoid uncontrolled usage.",
-    gemini:"+ Very strong inside Gmail, Docs, Sheets, Drive and Meet. - Less differentiated if teams do not live in Google Workspace.",
-    claude:"+ Excellent writing quality and careful reasoning. - Fewer native workplace integrations than Google.",
-    best:"OpenAI ChatGPT",
-    provider:"openai"
+    provider:"openai",
+    title:"OpenAI – GPTs & Agents",
+    items:["Chat: classic conversations", "Projects: workspace with files, instructions and memory", "GPTs: specialized assistants such as Customer Service GPT, HR GPT or Finance GPT", "Agents: execute actions, research and multi-step workflows"]
   },
   {
-    feature:"Projects",
-    openai:"+ Good for organizing files, instructions and recurring workflows. - Requires users to structure knowledge properly.",
-    gemini:"+ Strong when projects rely on Google Drive, Docs and Workspace files. - Value depends on Google Workspace maturity.",
-    claude:"+ Very strong for long documents and project context. - Less broad ecosystem than OpenAI or Google.",
-    best:"Anthropic Claude",
-    provider:"claude"
+    provider:"gemini",
+    title:"Google – Gems & Workspace",
+    items:["Chat: Gemini Chat", "Workspace: Gmail, Docs, Sheets and Drive", "Gems: personalized assistants", "Agents: progressively deployed inside the Google ecosystem"]
   },
   {
-    feature:"GPT / Custom Assistants",
-    openai:"+ Strongest ecosystem for custom GPTs, reusable assistants and internal playbooks. - Needs admin rules to avoid too many unmanaged GPTs.",
-    gemini:"+ Gemini Gems can support reusable prompts inside the Google ecosystem. - Smaller custom assistant ecosystem than OpenAI.",
-    claude:"+ Projects and instructions are powerful for expert workflows. - Less positioned as a broad custom assistant marketplace.",
-    best:"OpenAI ChatGPT",
-    provider:"openai"
+    provider:"claude",
+    title:"Anthropic – Claude Projects",
+    items:["Chat: Claude Chat", "Projects: collaborative workspaces", "Custom Assistants: more limited than GPTs or Gems", "Agents: less developed today for standard business users"]
   },
   {
-    feature:"AI Agents",
-    openai:"+ Strongest direction for autonomous workflows, tool use and multi-step execution. - Requires clear security and approval rules.",
-    gemini:"+ Strong potential for agents connected to Workspace data and Google services. - Best when Google environment is already standardized.",
-    claude:"+ Excellent for complex reasoning agents and coding tasks. - Enterprise deployment usually needs more technical setup.",
-    best:"OpenAI ChatGPT",
-    provider:"openai"
+    provider:"copilot",
+    title:"Microsoft – Copilot",
+    items:["Chat: Copilot Chat", "Microsoft 365 Copilot: Outlook, Excel, Word, PowerPoint and Teams", "Copilot Agents: business workflow automation", "Agents: very strong inside the Microsoft ecosystem"]
   }
 ];
 
@@ -1822,7 +1827,7 @@ function DepartmentDecisionTable({ rows }) {
       <table style={{ width:"100%", borderCollapse:"collapse", background:"#fff" }}>
         <thead>
           <tr style={{ textAlign:"left", color:"#475569", borderBottom:"1px solid #e5e7eb" }}>
-            {["Department", "OpenAI view", "Gemini analysis", "Final decision", "Why"].map((h) => <th key={h} style={{ padding:"14px 12px", fontSize:14 }}>{h}</th>)}
+            {["Department", "OpenAI view", "Gemini analysis", "Copilot angle", "Final decision", "Why"].map((h) => <th key={h} style={{ padding:"14px 12px", fontSize:14 }}>{h}</th>)}
           </tr>
         </thead>
         <tbody>
@@ -1833,6 +1838,7 @@ function DepartmentDecisionTable({ rows }) {
                 <td style={{ padding:"14px 12px", fontWeight:950, color:"#111827" }}>{row.department}</td>
                 <td style={{ padding:"14px 12px", color:"#374151", fontWeight:700 }}>{row.openai}</td>
                 <td style={{ padding:"14px 12px", color:"#374151", fontWeight:700 }}>{row.gemini}</td>
+                <td style={{ padding:"14px 12px", color:"#374151", fontWeight:700 }}>{row.copilot}</td>
                 <td style={{ padding:"14px 12px", background:p.bg, borderLeft:`6px solid ${p.border}` }}><ProviderBadge provider={row.provider} label={row.decision} /></td>
                 <td style={{ padding:"14px 12px", color:"#374151", lineHeight:1.5 }}>{row.why}</td>
               </tr>
@@ -1845,27 +1851,29 @@ function DepartmentDecisionTable({ rows }) {
 }
 
 function FeatureComparisonTable({ rows }) {
+  const providers = ["openai", "gemini", "claude", "copilot"];
   return (
     <div style={{ overflowX:"auto", marginTop:18 }}>
       <table style={{ width:"100%", borderCollapse:"collapse", background:"#fff" }}>
         <thead>
           <tr style={{ textAlign:"left", color:"#475569", borderBottom:"1px solid #e5e7eb" }}>
-            {["Function", "OpenAI ChatGPT", "Google Gemini", "Anthropic Claude", "Best fit"].map((h) => <th key={h} style={{ padding:"14px 12px", fontSize:14 }}>{h}</th>)}
+            <th style={{ padding:"14px 12px", fontSize:14 }}>Capability</th>
+            {providers.map((provider) => {
+              const p = AI_PROVIDER_COLORS[provider];
+              return <th key={provider} style={{ padding:"14px 12px", fontSize:14, color:p.text, borderTop:`4px solid ${p.border}` }}>{p.name} ({p.tool})</th>;
+            })}
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => {
-            const p = AI_PROVIDER_COLORS[row.provider] || AI_PROVIDER_COLORS.openai;
-            return (
-              <tr key={row.feature} style={{ borderBottom:"1px solid #f1f5f9" }}>
-                <td style={{ padding:"14px 12px", fontWeight:950, color:"#111827" }}>{row.feature}</td>
-                <td style={{ padding:"14px 12px", color:"#374151", lineHeight:1.55 }}>{row.openai}</td>
-                <td style={{ padding:"14px 12px", color:"#374151", lineHeight:1.55 }}>{row.gemini}</td>
-                <td style={{ padding:"14px 12px", color:"#374151", lineHeight:1.55 }}>{row.claude}</td>
-                <td style={{ padding:"14px 12px", background:p.bg, borderLeft:`6px solid ${p.border}` }}><ProviderBadge provider={row.provider} label={row.best} /></td>
-              </tr>
-            );
-          })}
+          {rows.map((row) => (
+            <tr key={row[0]} style={{ borderBottom:"1px solid #f1f5f9" }}>
+              <td style={{ padding:"14px 12px", fontWeight:950, color:"#111827" }}>{row[0]}</td>
+              {providers.map((provider, index) => {
+                const p = AI_PROVIDER_COLORS[provider];
+                return <td key={provider} style={{ padding:"14px 12px", color:"#374151", lineHeight:1.55, background:p.bg, borderLeft:`4px solid ${p.border}`, fontWeight:800 }}>{row[index + 1]}</td>;
+              })}
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>
@@ -1930,7 +1938,7 @@ function AIComparisonPage({ setPage }) {
           <div>
             <div style={{ fontSize:30, fontWeight:900 }}>Price, GDPR & Comparison</div>
             <div style={{ marginTop:10, color:"#4b5563", lineHeight:1.7 }}>
-              Quick executive view of ChatGPT, Gemini and Claude: exact offer names, pricing idea, GDPR status, shared company data and key strengths.
+              Quick executive view of ChatGPT, Gemini, Claude and Microsoft Copilot: exact offer names, pricing idea, GDPR status, shared company data and key strengths.
             </div>
           </div>
           <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
@@ -1941,7 +1949,7 @@ function AIComparisonPage({ setPage }) {
           </div>
         </div>
 
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:14, marginTop:18 }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:14, marginTop:18 }}>
           <ProviderCard provider="openai" title="OpenAI · ChatGPT">
             Best all-rounder for analysis, reporting, content, coding, custom GPTs and business support.
           </ProviderCard>
@@ -1951,9 +1959,12 @@ function AIComparisonPage({ setPage }) {
           <ProviderCard provider="claude" title="Anthropic · Claude">
             Best specialist for long documents, legal, HR, policies, nuanced writing and complex reasoning.
           </ProviderCard>
+          <ProviderCard provider="copilot" title="Microsoft · Copilot">
+            Best specialist for Microsoft 365 users: Outlook, Teams, Excel, PowerPoint and Copilot Agents.
+          </ProviderCard>
         </div>
 
-        <SimpleTable headers={["Criteria", "OpenAI ChatGPT", "Google Gemini", "Anthropic Claude"]} rows={AI_PLATFORM_ROWS} />
+        <SimpleTable headers={["Criteria", "OpenAI ChatGPT", "Google Gemini", "Anthropic Claude", "Microsoft Copilot"]} rows={AI_PLATFORM_ROWS} />
 
         <div style={{ marginTop:14, color:"#64748b", lineHeight:1.7, fontSize:14 }}>
           <b>Shared company data = No</b> means company prompts, files, spreadsheets and documents are not used to train public AI models when using Business or Enterprise plans.
@@ -1967,17 +1978,30 @@ function AIComparisonPage({ setPage }) {
       <Box>
         <div style={{ fontSize:30, fontWeight:900 }}>Best AI by Department</div>
         <div style={{ marginTop:10, color:"#4b5563", lineHeight:1.7 }}>
-          Comparison between the initial OpenAI view and the Gemini analysis, with a color-coded final decision for each department.
+          Comparison between the OpenAI view, Gemini analysis and Copilot angle, with a color-coded final decision for each department.
         </div>
         <DepartmentDecisionTable rows={AI_DEPARTMENT_COMPARISON} />
       </Box>
 
       <Box>
-        <div style={{ fontSize:30, fontWeight:900 }}>Functions Comparison</div>
+        <div style={{ fontSize:30, fontWeight:900 }}>AI Capabilities Comparison</div>
         <div style={{ marginTop:10, color:"#4b5563", lineHeight:1.7 }}>
-          Quick comparison of the main usage modes: Chat, Projects, GPT / custom assistants and AI Agents.
+          Quick comparison of the main usage modes: Chat, Projects / Workspaces, GPTs / Gems / Copilot Agents and AI Agents.
         </div>
-        <FeatureComparisonTable rows={AI_FEATURE_COMPARISON} />
+        <FeatureComparisonTable rows={AI_CAPABILITIES_ROWS} />
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:14, marginTop:18 }}>
+          {AI_CAPABILITY_EXPLAINERS.map((item) => {
+            const p = AI_PROVIDER_COLORS[item.provider];
+            return (
+              <div key={item.title} style={{ background:p.bg, border:`1px solid ${p.border}`, borderRadius:18, padding:18 }}>
+                <ProviderBadge provider={item.provider} label={item.title} />
+                <ul style={{ marginTop:12, paddingLeft:18, color:"#374151", lineHeight:1.7 }}>
+                  {item.items.map((x) => <li key={x}>{x}</li>)}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
       </Box>
 
       <Box>
@@ -1986,18 +2010,30 @@ function AIComparisonPage({ setPage }) {
           <div style={{ background:AI_PROVIDER_COLORS.openai.bg, border:`1px solid ${AI_PROVIDER_COLORS.openai.border}`, borderRadius:18, padding:18 }}>
             <ProviderBadge provider="openai" label="OpenAI recommended approach" />
             <div style={{ marginTop:12, color:"#374151", lineHeight:1.8 }}>
-              Use <b>ChatGPT Business</b> as the default platform for managers, analysts, marketing, customer service, finance and leadership. Move to <b>ChatGPT Enterprise</b> when IT requires SSO, SCIM, audit logs, higher limits or enterprise governance.
+              Use <b>ChatGPT Business</b> as the default platform for managers, analysts, marketing, customer service and leadership. Move to <b>ChatGPT Enterprise</b> when IT requires SSO, SCIM, audit logs, higher limits or enterprise governance.
             </div>
           </div>
           <div style={{ background:AI_PROVIDER_COLORS.gemini.bg, border:`1px solid ${AI_PROVIDER_COLORS.gemini.border}`, borderRadius:18, padding:18 }}>
-            <ProviderBadge provider="gemini" label="Gemini recommended approach" />
+            <ProviderBadge provider="gemini" label="Google Gemini recommended approach" />
             <div style={{ marginTop:12, color:"#374151", lineHeight:1.8 }}>
               Use <b>Gemini Business</b> broadly if employees already work in Google Workspace. It is the easiest rollout for Gmail, Docs, Drive, Sheets and Meet users. Upgrade to <b>Gemini Enterprise</b> when governance, Workspace administration and higher usage limits become critical.
             </div>
           </div>
+          <div style={{ background:AI_PROVIDER_COLORS.claude.bg, border:`1px solid ${AI_PROVIDER_COLORS.claude.border}`, borderRadius:18, padding:18 }}>
+            <ProviderBadge provider="claude" label="Anthropic Claude recommended approach" />
+            <div style={{ marginTop:12, color:"#374151", lineHeight:1.8 }}>
+              Use <b>Claude Team</b> for Legal, HR, Brand and long-document review. Move to <b>Claude Enterprise</b> when advanced governance, higher limits and enterprise support are required.
+            </div>
+          </div>
+          <div style={{ background:AI_PROVIDER_COLORS.copilot.bg, border:`1px solid ${AI_PROVIDER_COLORS.copilot.border}`, borderRadius:18, padding:18 }}>
+            <ProviderBadge provider="copilot" label="Microsoft Copilot recommended approach" />
+            <div style={{ marginTop:12, color:"#374151", lineHeight:1.8 }}>
+              Use <b>Microsoft 365 Copilot</b> for finance, Excel power users, PowerPoint creation, Outlook, Teams and Microsoft-heavy departments. Add <b>Copilot Studio</b> for business agents and workflow automation.
+            </div>
+          </div>
         </div>
         <div style={{ marginTop:16, color:"#374151", lineHeight:1.8 }}>
-          <b>Balanced company setup:</b> Gemini for broad Google Workspace adoption, ChatGPT for power users and business execution, and Claude for Legal, HR, Brand and complex document review.
+          <b>Best-of-breed company setup:</b> Gemini for broad Google Workspace adoption, ChatGPT for power users and business execution, Claude for Legal / HR / Brand document review, and Copilot for Finance and Microsoft 365 power users.
         </div>
       </Box>
     </>
