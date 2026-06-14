@@ -2055,6 +2055,7 @@ export default function Home() {
       const hash = window.location.hash.replace("#", "");
       if (hash === "analysis-ai-comparison") setPage("AI Comparison");
       if (hash === "analysis") setPage("Analysis");
+      if (hash === "policies") setPage("Policies");
     };
     applyHashRoute();
     window.addEventListener("hashchange", applyHashRoute);
@@ -2117,6 +2118,7 @@ export default function Home() {
               key={m}
               onClick={() => {
                 if (m === "Analysis") window.location.hash = "analysis";
+                if (m === "Policies") window.location.hash = "policies";
                 setPage(m);
               }}
               style={{
@@ -2254,7 +2256,7 @@ export default function Home() {
             "The customer should always receive a clear update and a next step.",
             "The old 'Open Policies source folder' link was removed because it pointed to a folder and caused a 404."
           ]} />
-          <DocumentButtons documents={[{ label: "Open WISMO full source", url: "/docs/wismo-late-policy.pdf" }]} />
+          <DocumentButtons documents={[{ label: "Open WISMO full source", url: "/policies/wismo-full-source" }]} />
         </Box>
 
         {WISMO_LATE.map((x) => <WismoDecisionCard key={x.id} item={x} />)}
