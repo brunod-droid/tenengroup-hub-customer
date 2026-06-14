@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 const emptyInsights = {
   summary: {},
   geography: { countries: [], states: [], topStatesByOrders: [], topStatesByAov: [], cityNote: '' },
-  products: { status: '', message: '', bestSellers: [], productPerformance: [] },
+  products: { message: '' },
   personalization: { engravingThemes: [], topNames: [], topInitials: [], giftSignals: {}, giftNoteStatus: '' },
   personas: [],
   service: { topReasons: [] },
@@ -61,7 +61,6 @@ export default function CustomerInsightsPage() {
 
   function askSmartAI(customQuestion) {
     const q = String(customQuestion || question || '').toLowerCase();
-    if (!q.trim()) return;
 
     if (q.includes('state') || q.includes('geography') || q.includes('aov')) {
       const states = insights.geography?.states || [];
@@ -143,16 +142,16 @@ export default function CustomerInsightsPage() {
 
       {activeTab === 'dna' && (
         <Panel title="Customer DNA">
-          <div className="dnaGrid">
+          <div className="metricGrid">
             <Metric label="Personalized Orders" value={formatPercent(summary.personalizationRate)} note={`${formatNumber(summary.personalizedOrders)} orders`} />
             <Metric label="Non Personalized" value={formatPercent(summary.nonPersonalizedRate)} note="Orders without detected personalization" />
             <Metric label="Repeat Customers" value={formatPercent(summary.repeatCustomerRate)} note={`${formatNumber(summary.repeatCustomers)} customers`} />
             <Metric label="One-time Customers" value={formatPercent(100 - Number(summary.repeatCustomerRate || 0))} note="Customers with one order" />
           </div>
           <div className="threeCols">
-            <SimpleList title="Most Common Names" items={insights.personalization?.topNames} />
-            <SimpleList title="Most Common Initials" items={insights.personalization?.topInitials} />
-            <SimpleList title="Personalization Themes" items={insights.personalization?.engravingThemes} />
+            <SimpleTable title="Most Common Names" items={insights.personalization?.topNames} />
+            <SimpleTable title="Most Common Initials" items={insights.personalization?.topInitials} />
+            <SimpleTable title="Personalization Themes" items={insights.personalization?.engravingThemes} />
           </div>
         </Panel>
       )}
@@ -208,16 +207,16 @@ export default function CustomerInsightsPage() {
             <h3>Gift notes status</h3>
             <p>{insights.personalization?.giftNoteStatus}</p>
           </div>
-          <div className="dnaGrid topGap">
+          <div className="metricGrid topGap">
             <Metric label="Family Signal" value={formatNumber(insights.personalization?.giftSignals?.family_signal_orders)} note="Mom, daughter, son, family..." />
             <Metric label="Couple / Love Signal" value={formatNumber(insights.personalization?.giftSignals?.couple_signal_orders)} note="Love, heart, anniversary..." />
             <Metric label="Birthday Signal" value={formatNumber(insights.personalization?.giftSignals?.birthday_signal_orders)} note="Birthday / bday detected" />
             <Metric label="Personalized Orders" value={formatPercent(summary.personalizationRate)} note="Main gifting proxy" />
           </div>
           <div className="threeCols topGap">
-            <SimpleList title="Engraving Patterns" items={insights.personalization?.engravingThemes} />
-            <SimpleList title="Common Names" items={insights.personalization?.topNames} />
-            <SimpleList title="Common Initials" items={insights.personalization?.topInitials} />
+            <SimpleTable title="Engraving Patterns" items={insights.personalization?.engravingThemes} />
+            <SimpleTable title="Common Names" items={insights.personalization?.topNames} />
+            <SimpleTable title="Common Initials" items={insights.personalization?.topInitials} />
           </div>
         </Panel>
       )}
@@ -225,7 +224,7 @@ export default function CustomerInsightsPage() {
       {activeTab === 'service' && (
         <Panel title="Customer Service Intelligence">
           <div className="twoCols">
-            <SimpleList title="Top Contact Reasons" items={insights.service?.topReasons} />
+            <SimpleTable title="Top Contact Reasons" items={insights.service?.topReasons} />
             <div className="notice">
               <h3>Service Summary</h3>
               <p>{formatNumber(summary.supportContacts)} Kustomer conversations.</p>
@@ -238,15 +237,15 @@ export default function CustomerInsightsPage() {
 
       {activeTab === 'reviews' && (
         <Panel title="Review Intelligence">
-          <div className="dnaGrid">
+          <div className="metricGrid">
             <Metric label="Trustpilot Score" value={Number(summary.trustpilotScore || 0).toFixed(1)} note={`${formatNumber(summary.reviews)} reviews`} />
             <Metric label="Positive Themes" value={formatNumber((insights.reviews?.positiveThemes || []).reduce((a, b) => a + Number(b.count || 0), 0))} note="Detected 4-5 star themes" />
             <Metric label="Negative Themes" value={formatNumber((insights.reviews?.negativeThemes || []).reduce((a, b) => a + Number(b.count || 0), 0))} note="Detected 1-3 star themes" />
             <Metric label="Contact Rate" value={formatPercent(summary.contactRate)} note="Service contacts / orders" />
           </div>
           <div className="twoCols topGap">
-            <SimpleList title="Positive Review Themes" items={insights.reviews?.positiveThemes} />
-            <SimpleList title="Negative Review Themes" items={insights.reviews?.negativeThemes} />
+            <SimpleTable title="Positive Review Themes" items={insights.reviews?.positiveThemes} />
+            <SimpleTable title="Negative Review Themes" items={insights.reviews?.negativeThemes} />
           </div>
         </Panel>
       )}
@@ -278,7 +277,7 @@ export default function CustomerInsightsPage() {
         .heroCard strong { display:block; font-size:34px; margin:8px 0; }
         .status { margin:20px 0; padding:14px 18px; background:#fff8dc; border:1px solid #eadc9c; border-radius:16px; }
         .kpis { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
-        .kpi,.panel,.persona,.metric,.notice,.list { background:#fff; border-radius:22px; box-shadow:0 12px 30px rgba(60,40,25,.06); }
+        .kpi,.panel,.persona,.metric,.notice,.tableCard { background:#fff; border-radius:22px; box-shadow:0 12px 30px rgba(60,40,25,.06); }
         .kpi { padding:18px; }
         .kpi span,.metric span { display:block; color:#7c695a; font-size:13px; margin-bottom:8px; }
         .kpi strong,.metric strong { display:block; font-size:28px; }
@@ -290,7 +289,7 @@ export default function CustomerInsightsPage() {
         .panelTitle { margin:0 0 18px; font-size:28px; }
         .takeaways { display:grid; gap:10px; }
         .takeaways div { background:#f7f3ef; padding:14px; border-radius:16px; line-height:1.5; }
-        .dnaGrid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
+        .metricGrid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
         .metric,.notice { padding:18px; border:1px solid #f0e6dd; }
         .notice h3 { margin-top:0; }
         .notice p { color:#6f5b4c; line-height:1.5; }
@@ -299,28 +298,26 @@ export default function CustomerInsightsPage() {
         .topGap { margin-top:16px; }
         .personaGrid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
         .persona { padding:20px; border:1px solid #f0e6dd; }
-        .persona h3 { margin:0 0 8px; }
-        .persona p { color:#6f5b4c; min-height:44px; }
         .miniStats { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
         .miniStats span { background:#f7f3ef; border-radius:12px; padding:10px; font-size:13px; }
         .miniStats b { display:block; margin-top:4px; font-size:16px; }
-        .list { overflow:hidden; border:1px solid #eee3d9; }
-        .list h3 { margin:0; padding:16px 18px; background:#fbf8f5; border-bottom:1px solid #efe5dc; font-size:18px; }
-        .simpleRow { display:grid; grid-template-columns:34px minmax(0,1fr) auto; gap:12px; padding:12px 18px; border-top:1px solid #f0e8df; align-items:center; }
-        .geoHeader,.geoRow { display:grid; grid-template-columns:minmax(160px,1.4fr) .7fr .8fr .7fr; gap:12px; align-items:center; }
-        .geoHeader { padding:11px 18px; color:#8d7a6b; font-size:12px; font-weight:800; text-transform:uppercase; background:#fffaf6; border-bottom:1px solid #f0e8df; }
-        .geoRow { padding:12px 18px; border-top:1px solid #f0e8df; }
-        .rank { width:24px; height:24px; border-radius:999px; background:#f0e6dd; color:#6f5b4c; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; }
-        .nameCell { display:flex; align-items:center; gap:10px; min-width:0; }
-        .nameCell strong,.simpleName { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-        .num { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+        .tableCard { overflow:hidden; border:1px solid #eee3d9; }
+        .tableCard h3 { margin:0; padding:16px 18px; background:#fbf8f5; border-bottom:1px solid #efe5dc; font-size:18px; }
+        .dataTable { width:100%; border-collapse:collapse; table-layout:fixed; }
+        .dataTable th { padding:10px 12px; color:#8d7a6b; font-size:11px; text-transform:uppercase; letter-spacing:.04em; text-align:right; background:#fffaf6; border-bottom:1px solid #f0e8df; white-space:nowrap; }
+        .dataTable th:first-child { text-align:left; width:44%; }
+        .dataTable td { padding:11px 12px; border-bottom:1px solid #f0e8df; text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+        .dataTable td:first-child { text-align:left; white-space:normal; font-weight:800; }
+        .dataTable tr:last-child td { border-bottom:0; }
+        .rankBubble { width:24px; height:24px; border-radius:999px; background:#f0e6dd; color:#6f5b4c; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; margin-right:8px; }
+        .simpleTable th:first-child { width:70%; }
         .muted { color:#6f5b4c; }
         .ask { display:flex; gap:10px; margin:18px 0; }
         .ask input { flex:1; padding:15px 18px; border:1px solid #e1d4c8; border-radius:999px; font-size:15px; }
         .chips { display:flex; gap:10px; flex-wrap:wrap; }
         .chips button { background:#f7f3ef; }
         .answer { margin-top:18px; padding:18px; background:#f7f3ef; border-radius:18px; line-height:1.5; }
-        @media(max-width:1000px){ .page{padding:18px;} .hero,.kpis,.dnaGrid,.personaGrid,.threeCols,.twoCols{grid-template-columns:1fr;display:grid;} .geoHeader{display:none;} .geoRow{grid-template-columns:1fr;gap:6px;} h1{font-size:34px;} }
+        @media(max-width:1000px){ .page{padding:18px;} .hero,.kpis,.metricGrid,.personaGrid,.threeCols,.twoCols{grid-template-columns:1fr;display:grid;} h1{font-size:34px;} .dataTable{table-layout:auto;} }
       `}</style>
     </div>
   );
@@ -334,41 +331,44 @@ function Metric({ label, value, note }) {
   return <div className="metric"><span>{label}</span><strong>{value}</strong><small>{note}</small></div>;
 }
 
-function SimpleList({ title, items = [] }) {
+function SimpleTable({ title, items = [] }) {
   return (
-    <div className="list">
+    <div className="tableCard">
       <h3>{title}</h3>
-      {(!items || items.length === 0) && <div className="simpleRow"><span>-</span><span>No data yet</span><b>-</b></div>}
-      {(items || []).slice(0, 15).map((item, index) => (
-        <div className="simpleRow" key={`${title}-${item.name}`}>
-          <span className="rank">{index + 1}</span>
-          <span className="simpleName">{item.name || 'Unknown'}</span>
-          <b className="num">{formatNumber(item.count || item.orders || 0)}</b>
-        </div>
-      ))}
+      <table className="dataTable simpleTable">
+        <thead><tr><th>Name</th><th>Count</th></tr></thead>
+        <tbody>
+          {(!items || items.length === 0) && <tr><td>No data yet</td><td>-</td></tr>}
+          {(items || []).slice(0, 15).map((item, index) => (
+            <tr key={`${title}-${item.name}`}>
+              <td><span className="rankBubble">{index + 1}</span>{item.name || 'Unknown'}</td>
+              <td>{formatNumber(item.count || item.orders || 0)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
 
 function GeoTable({ title, items = [] }) {
   return (
-    <div className="list">
+    <div className="tableCard">
       <h3>{title}</h3>
-      <div className="geoHeader">
-        <span>Market</span>
-        <span className="num">Orders</span>
-        <span className="num">Revenue</span>
-        <span className="num">AOV</span>
-      </div>
-      {(!items || items.length === 0) && <div className="simpleRow"><span>-</span><span>No data yet</span><b>-</b></div>}
-      {(items || []).slice(0, 15).map((item, index) => (
-        <div className="geoRow" key={`${title}-${item.name}`}>
-          <div className="nameCell"><span className="rank">{index + 1}</span><strong>{item.name || 'Unknown'}</strong></div>
-          <span className="num">{formatNumber(item.orders || item.count || 0)}</span>
-          <span className="num">{formatMoney(item.revenue || 0)}</span>
-          <span className="num">{formatMoney(item.aov || 0)}</span>
-        </div>
-      ))}
+      <table className="dataTable">
+        <thead><tr><th>Market</th><th>Orders</th><th>Revenue</th><th>AOV</th></tr></thead>
+        <tbody>
+          {(!items || items.length === 0) && <tr><td>No data yet</td><td>-</td><td>-</td><td>-</td></tr>}
+          {(items || []).slice(0, 15).map((item, index) => (
+            <tr key={`${title}-${item.name}`}>
+              <td><span className="rankBubble">{index + 1}</span>{item.name || 'Unknown'}</td>
+              <td>{formatNumber(item.orders || item.count || 0)}</td>
+              <td>{formatMoney(item.revenue || 0)}</td>
+              <td>{formatMoney(item.aov || 0)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
