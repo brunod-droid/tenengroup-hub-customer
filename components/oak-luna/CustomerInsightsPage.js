@@ -1,8 +1,9 @@
+
 import { useEffect, useState } from 'react';
 
 const emptyInsights = {
   summary: {},
-  geography: { countries: [], states: [], topStatesByOrders: [], topStatesByAov: [], cityNote: '' },
+  geography: { countries: [], states: [], topStatesByOrders: [], topStatesByAov: [] },
   products: { message: '' },
   personalization: { engravingThemes: [], topNames: [], topInitials: [], giftSignals: {}, giftNoteStatus: '' },
   personas: [],
@@ -11,29 +12,31 @@ const emptyInsights = {
   keyTakeaways: [],
 };
 
-function formatNumber(value) {
-  return new Intl.NumberFormat('en-US').format(Math.round(Number(value || 0)));
+const nf = new Intl.NumberFormat('en-US');
+
+function n(value) {
+  return nf.format(Math.round(Number(value || 0)));
 }
 
-function formatMoney(value) {
-  const n = Number(value || 0);
-  if (Math.abs(n) >= 1000000) return `$${(n / 1000000).toFixed(1)}M`;
-  if (Math.abs(n) >= 1000) return `$${(n / 1000).toFixed(0)}K`;
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
+function money(value) {
+  const number = Number(value || 0);
+  if (Math.abs(number) >= 1000000) return `$${(number / 1000000).toFixed(1)}M`;
+  if (Math.abs(number) >= 1000) return `$${(number / 1000).toFixed(0)}K`;
+  return `$${Math.round(number)}`;
 }
 
-function formatPercent(value) {
+function pct(value) {
   return `${Number(value || 0).toFixed(1)}%`;
 }
 
-function formatCardValue(card) {
-  if (card.currency) return formatMoney(card.value);
-  if (card.suffix === '%') return formatPercent(card.value);
+function cardValue(card) {
+  if (card.currency) return money(card.value);
+  if (card.suffix === '%') return pct(card.value);
   if (card.label === 'Trustpilot') return Number(card.value || 0).toFixed(1);
-  return formatNumber(card.value);
+  return n(card.value);
 }
 
-async function fetchInsights() {
+async function loadInsights() {
   const response = await fetch('/api/oak-luna-insights');
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || response.statusText);
@@ -41,52 +44,45 @@ async function fetchInsights() {
 }
 
 export default function CustomerInsightsPage() {
-  const [activeTab, setActiveTab] = useState('executive');
-  const [insights, setInsights] = useState(emptyInsights);
+  const [tab, setTab] = useState('executive');
+  const [data, setData] = useState(emptyInsights);
   const [status, setStatus] = useState('Loading Oak & Luna customer insights...');
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
 
   useEffect(() => {
-    fetchInsights()
-      .then((data) => {
-        setInsights({ ...emptyInsights, ...data });
-        setStatus(`Insights generated from Supabase cache. Last refresh: ${new Date(data.generatedAt || Date.now()).toLocaleString()}`);
+    loadInsights()
+      .then((payload) => {
+        setData({ ...emptyInsights, ...payload });
+        setStatus(`Insights generated from Supabase cache. Last refresh: ${new Date(payload.generatedAt || Date.now()).toLocaleString()}`);
       })
       .catch((error) => setStatus(`Insights load failed: ${error.message}`));
   }, []);
 
-  const summary = insights.summary || {};
-  const cards = insights.executiveCards || [];
+  const s = data.summary || {};
+  const cards = data.executiveCards || [];
+  const service = data.service?.topReasons || [];
+  const positive = data.reviews?.positiveThemes || [];
+  const negative = data.reviews?.negativeThemes || [];
+  const gifts = data.personalization?.giftSignals || {};
 
-  function askSmartAI(customQuestion) {
-    const q = String(customQuestion || question || '').toLowerCase();
-
-    if (q.includes('state') || q.includes('geography') || q.includes('aov')) {
-      const states = insights.geography?.states || [];
-      setAnswer(`Top revenue states: ${states.slice(0, 5).map((s) => `${s.name}: ${formatMoney(s.revenue)}, ${formatNumber(s.orders)} orders, ${formatMoney(s.aov)} AOV`).join('; ')}.`);
-      return;
-    }
-
-    if (q.includes('name') || q.includes('engraving')) {
-      const names = insights.personalization?.topNames || [];
-      setAnswer(`Most common engraved names: ${names.slice(0, 8).map((n) => `${n.name} (${formatNumber(n.count)})`).join(', ')}.`);
-      return;
-    }
-
+  function ask(qOverride) {
+    const q = String(qOverride || question || '').toLowerCase();
     if (q.includes('gift')) {
-      const g = insights.personalization?.giftSignals || {};
-      setAnswer(`Gift notes are not available in the current source file. Signals detected from personalization: family-related ${formatNumber(g.family_signal_orders)}, couple/love-related ${formatNumber(g.couple_signal_orders)}, birthday-related ${formatNumber(g.birthday_signal_orders)}.`);
+      setAnswer(`Gift note text is missing from the current Orders export. Current gift proxies: family signal ${n(gifts.family_signal_orders)}, couple/love signal ${n(gifts.couple_signal_orders)}, birthday signal ${n(gifts.birthday_signal_orders)}.`);
       return;
     }
-
     if (q.includes('service') || q.includes('contact')) {
-      const reasons = insights.service?.topReasons || [];
-      setAnswer(`Support contact rate is ${formatPercent(summary.contactRate)}. Top reasons: ${reasons.slice(0, 5).map((r) => `${r.name} (${formatNumber(r.count)})`).join(', ')}.`);
+      setAnswer(`Contact rate is ${pct(s.contactRate)}. Main drivers: ${service.slice(0, 5).map((x) => `${x.name} (${n(x.count)})`).join(', ')}.`);
       return;
     }
-
-    setAnswer(`${formatNumber(summary.orders)} orders, ${formatNumber(summary.customers)} customers, ${formatMoney(summary.revenue)} revenue, ${formatPercent(summary.personalizationRate)} personalized, ${formatPercent(summary.repeatCustomerRate)} repeat customers, Trustpilot ${Number(summary.trustpilotScore || 0).toFixed(1)}.`);
+    if (q.includes('name') || q.includes('engraving')) {
+      const names = data.personalization?.topNames || [];
+      setAnswer(`Most common engraved names: ${names.slice(0, 8).map((x) => `${x.name} (${n(x.count)})`).join(', ')}.`);
+      return;
+    }
+    const states = data.geography?.states || [];
+    setAnswer(`Customer snapshot: ${n(s.orders)} orders, ${n(s.customers)} customers, ${money(s.revenue)} revenue, ${pct(s.personalizationRate)} personalized. Top states: ${states.slice(0, 4).map((x) => `${x.name} ${money(x.revenue)}`).join(', ')}.`);
   }
 
   return (
@@ -99,7 +95,7 @@ export default function CustomerInsightsPage() {
         </div>
         <div className="heroCard">
           <span>Dataset</span>
-          <strong>{formatNumber(summary.orders)}</strong>
+          <strong>{n(s.orders)}</strong>
           <small>orders analyzed</small>
         </div>
       </header>
@@ -110,7 +106,7 @@ export default function CustomerInsightsPage() {
         {cards.map((card) => (
           <div className="kpi" key={card.label}>
             <span>{card.label}</span>
-            <strong>{formatCardValue(card)}</strong>
+            <strong>{cardValue(card)}</strong>
             <small>{card.note}</small>
           </div>
         ))}
@@ -123,50 +119,50 @@ export default function CustomerInsightsPage() {
           ['personas', 'Personas'],
           ['geography', 'Geography'],
           ['products', 'Products'],
-          ['gifts', 'Gifts & Personalization'],
+          ['gifts', 'Gift Signals'],
           ['service', 'Customer Service'],
           ['reviews', 'Reviews'],
           ['ai', 'Ask AI'],
         ].map(([id, label]) => (
-          <button key={id} className={activeTab === id ? 'active' : ''} onClick={() => setActiveTab(id)}>{label}</button>
+          <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>{label}</button>
         ))}
       </nav>
 
-      {activeTab === 'executive' && (
+      {tab === 'executive' && (
         <Panel title="Executive Summary">
           <div className="takeaways">
-            {(insights.keyTakeaways || []).map((item, i) => <div key={i}>• {item}</div>)}
+            {(data.keyTakeaways || []).map((item, index) => <div key={index}>• {item}</div>)}
           </div>
         </Panel>
       )}
 
-      {activeTab === 'dna' && (
+      {tab === 'dna' && (
         <Panel title="Customer DNA">
           <div className="metricGrid">
-            <Metric label="Personalized Orders" value={formatPercent(summary.personalizationRate)} note={`${formatNumber(summary.personalizedOrders)} orders`} />
-            <Metric label="Non Personalized" value={formatPercent(summary.nonPersonalizedRate)} note="Orders without detected personalization" />
-            <Metric label="Repeat Customers" value={formatPercent(summary.repeatCustomerRate)} note={`${formatNumber(summary.repeatCustomers)} customers`} />
-            <Metric label="One-time Customers" value={formatPercent(100 - Number(summary.repeatCustomerRate || 0))} note="Customers with one order" />
+            <Metric label="Personalized Orders" value={pct(s.personalizationRate)} note={`${n(s.personalizedOrders)} orders`} />
+            <Metric label="Non Personalized" value={pct(s.nonPersonalizedRate)} note="Orders without detected personalization" />
+            <Metric label="Repeat Customers" value={pct(s.repeatCustomerRate)} note={`${n(s.repeatCustomers)} customers`} />
+            <Metric label="One-time Customers" value={pct(100 - Number(s.repeatCustomerRate || 0))} note="Customers with one order" />
           </div>
           <div className="threeCols">
-            <SimpleTable title="Most Common Names" items={insights.personalization?.topNames} />
-            <SimpleTable title="Most Common Initials" items={insights.personalization?.topInitials} />
-            <SimpleTable title="Personalization Themes" items={insights.personalization?.engravingThemes} />
+            <SimpleTable title="Most Common Names" items={data.personalization?.topNames} />
+            <SimpleTable title="Most Common Initials" items={data.personalization?.topInitials} />
+            <SimpleTable title="Personalization Themes" items={data.personalization?.engravingThemes} />
           </div>
         </Panel>
       )}
 
-      {activeTab === 'personas' && (
+      {tab === 'personas' && (
         <Panel title="Customer Personas">
           <div className="personaGrid">
-            {(insights.personas || []).map((p) => (
+            {(data.personas || []).map((p) => (
               <div className="persona" key={p.name}>
                 <h3>{p.name}</h3>
                 <p>{p.description}</p>
                 <div className="miniStats">
-                  <span>Orders <b>{formatNumber(p.orders)}</b></span>
-                  <span>Customers <b>{formatNumber(p.customers)}</b></span>
-                  <span>Share <b>{formatPercent(p.share)}</b></span>
+                  <span>Orders <b>{n(p.orders)}</b></span>
+                  <span>Customers <b>{n(p.customers)}</b></span>
+                  <span>Share <b>{pct(p.share)}</b></span>
                 </div>
               </div>
             ))}
@@ -174,92 +170,113 @@ export default function CustomerInsightsPage() {
         </Panel>
       )}
 
-      {activeTab === 'geography' && (
+      {tab === 'geography' && (
         <Panel title="Geography">
           <div className="threeCols">
-            <GeoTable title="Top US States by Revenue" items={insights.geography?.states} />
-            <GeoTable title="Top US States by Orders" items={insights.geography?.topStatesByOrders} />
-            <GeoTable title="Top US States by AOV" items={insights.geography?.topStatesByAov} />
+            <GeoTable title="Top US States by Revenue" items={data.geography?.states} />
+            <GeoTable title="Top US States by Orders" items={data.geography?.topStatesByOrders} />
+            <GeoTable title="Top US States by AOV" items={data.geography?.topStatesByAov} />
           </div>
           <div className="twoCols topGap">
-            <GeoTable title="Top Countries" items={insights.geography?.countries} />
-            <div className="notice">
-              <h3>City Ranking</h3>
-              <p>{insights.geography?.cityNote || 'City ranking is hidden because city extraction is not reliable from the current address-only export.'}</p>
-            </div>
+            <GeoTable title="Top Countries" items={data.geography?.countries} />
+            <InsightBox
+              title="City ranking hidden"
+              body="The current Orders export contains one free-text address field, not a clean city column. State and country are reliable after cleanup; city extraction is not reliable enough to show."
+              bullets={['Upload a clean City column to unlock Top Cities.', 'Current US State and Country views are usable.', 'City ranking is hidden intentionally to avoid misleading insights.']}
+            />
           </div>
         </Panel>
       )}
 
-      {activeTab === 'products' && (
+      {tab === 'products' && (
         <Panel title="Products">
-          <div className="notice">
-            <h3>Product data missing</h3>
-            <p>{insights.products?.message || 'Product names/SKUs are not available in the current Orders source file.'}</p>
-            <p>To unlock Best Sellers, Revenue by Product, Product Risk and Product-level AI, upload an Orders export containing product title or SKU.</p>
+          <div className="twoCols">
+            <InsightBox
+              title="Product data missing"
+              body="The current Orders export does not include product title or SKU. Product dashboards would be misleading without this."
+              bullets={['Needed: product title or SKU.', 'Then we can calculate best sellers, product AOV and product risk.', 'This is the next export to request.']}
+            />
+            <InsightBox
+              title="Recommended next export"
+              body="Ask for an order line export, not only order headers."
+              bullets={['Order ID', 'Email', 'Product title / SKU', 'Quantity', 'Line revenue', 'Personalization', 'Gift note']}
+            />
           </div>
         </Panel>
       )}
 
-      {activeTab === 'gifts' && (
-        <Panel title="Gifts & Personalization">
+      {tab === 'gifts' && (
+        <Panel title="Gift Signals">
           <div className="notice">
-            <h3>Gift notes status</h3>
-            <p>{insights.personalization?.giftNoteStatus}</p>
+            <h3>Gift note status</h3>
+            <p>True gift note text is not present in the current Orders export. The dashboard therefore uses proxy signals from personalization and reviews.</p>
           </div>
           <div className="metricGrid topGap">
-            <Metric label="Family Signal" value={formatNumber(insights.personalization?.giftSignals?.family_signal_orders)} note="Mom, daughter, son, family..." />
-            <Metric label="Couple / Love Signal" value={formatNumber(insights.personalization?.giftSignals?.couple_signal_orders)} note="Love, heart, anniversary..." />
-            <Metric label="Birthday Signal" value={formatNumber(insights.personalization?.giftSignals?.birthday_signal_orders)} note="Birthday / bday detected" />
-            <Metric label="Personalized Orders" value={formatPercent(summary.personalizationRate)} note="Main gifting proxy" />
-          </div>
-          <div className="threeCols topGap">
-            <SimpleTable title="Engraving Patterns" items={insights.personalization?.engravingThemes} />
-            <SimpleTable title="Common Names" items={insights.personalization?.topNames} />
-            <SimpleTable title="Common Initials" items={insights.personalization?.topInitials} />
-          </div>
-        </Panel>
-      )}
-
-      {activeTab === 'service' && (
-        <Panel title="Customer Service Intelligence">
-          <div className="twoCols">
-            <SimpleTable title="Top Contact Reasons" items={insights.service?.topReasons} />
-            <div className="notice">
-              <h3>Service Summary</h3>
-              <p>{formatNumber(summary.supportContacts)} Kustomer conversations.</p>
-              <p>Contact rate: {formatPercent(summary.contactRate)}.</p>
-              <p>Next improvement: connect contact reasons to product/SKU once product data is available.</p>
-            </div>
-          </div>
-        </Panel>
-      )}
-
-      {activeTab === 'reviews' && (
-        <Panel title="Review Intelligence">
-          <div className="metricGrid">
-            <Metric label="Trustpilot Score" value={Number(summary.trustpilotScore || 0).toFixed(1)} note={`${formatNumber(summary.reviews)} reviews`} />
-            <Metric label="Positive Themes" value={formatNumber((insights.reviews?.positiveThemes || []).reduce((a, b) => a + Number(b.count || 0), 0))} note="Detected 4-5 star themes" />
-            <Metric label="Negative Themes" value={formatNumber((insights.reviews?.negativeThemes || []).reduce((a, b) => a + Number(b.count || 0), 0))} note="Detected 1-3 star themes" />
-            <Metric label="Contact Rate" value={formatPercent(summary.contactRate)} note="Service contacts / orders" />
+            <Metric label="Family Signal" value={n(gifts.family_signal_orders)} note="Mom, daughter, son, family..." />
+            <Metric label="Couple / Love Signal" value={n(gifts.couple_signal_orders)} note="Love, heart, anniversary..." />
+            <Metric label="Birthday Signal" value={n(gifts.birthday_signal_orders)} note="Birthday / bday detected" />
+            <Metric label="Personalized Orders" value={pct(s.personalizationRate)} note="Main gifting proxy" />
           </div>
           <div className="twoCols topGap">
-            <SimpleTable title="Positive Review Themes" items={insights.reviews?.positiveThemes} />
-            <SimpleTable title="Negative Review Themes" items={insights.reviews?.negativeThemes} />
+            <SimpleTable title="Gift-related Review Themes" items={(positive || []).filter((x) => String(x.name || '').toLowerCase().includes('gift'))} />
+            <InsightBox
+              title="Gift read"
+              body="Oak & Luna appears strongly gift-driven: personalization is high and reviews mention gifting occasions."
+              bullets={[`${pct(s.personalizationRate)} of orders are personalized.`, 'Family and couple signals appear in engraving text.', 'Real gift note analysis requires the missing Gift Note column.']}
+            />
           </div>
         </Panel>
       )}
 
-      {activeTab === 'ai' && (
+      {tab === 'service' && (
+        <Panel title="Customer Service Intelligence">
+          <div className="metricGrid">
+            <Metric label="Kustomer Conversations" value={n(s.supportContacts)} note="Imported support contacts" />
+            <Metric label="Contact Rate" value={pct(s.contactRate)} note="Conversations / orders" />
+            <Metric label="Main Driver" value={service[0]?.name || '-'} note={`${n(service[0]?.count)} conversations`} />
+            <Metric label="Second Driver" value={service[1]?.name || '-'} note={`${n(service[1]?.count)} conversations`} />
+          </div>
+          <div className="twoCols topGap">
+            <SimpleTable title="Detected Contact Drivers" items={service} />
+            <InsightBox
+              title="Qualitative read"
+              body="Support demand is low compared with order volume, but the leading themes indicate where CX friction concentrates."
+              bullets={['Shipping / delivery usually drives the highest anxiety.', 'Damage, quality and resize should be linked to products once product data is available.', 'Engraving issues are sensitive because purchases are emotional and gift-oriented.']}
+            />
+          </div>
+        </Panel>
+      )}
+
+      {tab === 'reviews' && (
+        <Panel title="Review Intelligence">
+          <div className="metricGrid">
+            <Metric label="Trustpilot Score" value={Number(s.trustpilotScore || 0).toFixed(1)} note={`${n(s.reviews)} reviews`} />
+            <Metric label="Positive Mentions" value={n(positive.reduce((a, b) => a + Number(b.count || 0), 0))} note="Detected 4-5 star themes" />
+            <Metric label="Negative Mentions" value={n(negative.reduce((a, b) => a + Number(b.count || 0), 0))} note="Detected 1-3 star themes" />
+            <Metric label="Review Volume" value={n(s.reviews)} note="Trustpilot reviews imported" />
+          </div>
+          <div className="threeCols topGap">
+            <SimpleTable title="Positive Review Themes" items={positive} />
+            <SimpleTable title="Negative Review Themes" items={negative} />
+            <InsightBox
+              title="Qualitative read"
+              body="Reviews are summarized by theme detection. The next improvement is to store representative review quotes for each theme."
+              bullets={['Positive themes show what customers value.', 'Negative themes show product/CX risk.', 'Gift and personalization language should be tracked separately.']}
+            />
+          </div>
+        </Panel>
+      )}
+
+      {tab === 'ai' && (
         <Panel title="Ask AI">
-          <p className="muted">V5 answers from cached full-dataset dashboard insights. Full OpenAI free-form analysis can be added after the dashboards are finalized.</p>
+          <p className="muted">V6 answers from cached full-dataset dashboard insights. Full OpenAI free-form analysis can be added after dashboards are finalized.</p>
           <div className="ask">
             <input value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Ask anything about Oak & Luna customers..." />
-            <button onClick={() => askSmartAI()}>Ask</button>
+            <button onClick={() => ask()}>Ask</button>
           </div>
           <div className="chips">
             {['Which states generate the most revenue?', 'Which names are most engraved?', 'What gift signals do we see?', 'Why do customers contact service?'].map((q) => (
-              <button key={q} onClick={() => { setQuestion(q); askSmartAI(q); }}>{q}</button>
+              <button key={q} onClick={() => { setQuestion(q); ask(q); }}>{q}</button>
             ))}
           </div>
           {answer && <div className="answer">{answer}</div>}
@@ -277,7 +294,7 @@ export default function CustomerInsightsPage() {
         .heroCard strong { display:block; font-size:34px; margin:8px 0; }
         .status { margin:20px 0; padding:14px 18px; background:#fff8dc; border:1px solid #eadc9c; border-radius:16px; }
         .kpis { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
-        .kpi,.panel,.persona,.metric,.notice,.tableCard { background:#fff; border-radius:22px; box-shadow:0 12px 30px rgba(60,40,25,.06); }
+        .kpi,.panel,.persona,.metric,.notice,.tableCard,.insightBox { background:#fff; border-radius:22px; box-shadow:0 12px 30px rgba(60,40,25,.06); }
         .kpi { padding:18px; }
         .kpi span,.metric span { display:block; color:#7c695a; font-size:13px; margin-bottom:8px; }
         .kpi strong,.metric strong { display:block; font-size:28px; }
@@ -290,9 +307,10 @@ export default function CustomerInsightsPage() {
         .takeaways { display:grid; gap:10px; }
         .takeaways div { background:#f7f3ef; padding:14px; border-radius:16px; line-height:1.5; }
         .metricGrid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
-        .metric,.notice { padding:18px; border:1px solid #f0e6dd; }
-        .notice h3 { margin-top:0; }
-        .notice p { color:#6f5b4c; line-height:1.5; }
+        .metric,.notice,.insightBox { padding:18px; border:1px solid #f0e6dd; }
+        .notice h3,.insightBox h3 { margin-top:0; }
+        .notice p,.insightBox p,.insightBox li { color:#6f5b4c; line-height:1.5; }
+        .insightBox ul { padding-left:20px; margin-bottom:0; }
         .threeCols { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
         .twoCols { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
         .topGap { margin-top:16px; }
@@ -331,6 +349,16 @@ function Metric({ label, value, note }) {
   return <div className="metric"><span>{label}</span><strong>{value}</strong><small>{note}</small></div>;
 }
 
+function InsightBox({ title, body, bullets = [] }) {
+  return (
+    <div className="insightBox">
+      <h3>{title}</h3>
+      <p>{body}</p>
+      {bullets.length > 0 && <ul>{bullets.map((b) => <li key={b}>{b}</li>)}</ul>}
+    </div>
+  );
+}
+
 function SimpleTable({ title, items = [] }) {
   return (
     <div className="tableCard">
@@ -342,7 +370,7 @@ function SimpleTable({ title, items = [] }) {
           {(items || []).slice(0, 15).map((item, index) => (
             <tr key={`${title}-${item.name}`}>
               <td><span className="rankBubble">{index + 1}</span>{item.name || 'Unknown'}</td>
-              <td>{formatNumber(item.count || item.orders || 0)}</td>
+              <td>{n(item.count || item.orders || 0)}</td>
             </tr>
           ))}
         </tbody>
@@ -362,9 +390,9 @@ function GeoTable({ title, items = [] }) {
           {(items || []).slice(0, 15).map((item, index) => (
             <tr key={`${title}-${item.name}`}>
               <td><span className="rankBubble">{index + 1}</span>{item.name || 'Unknown'}</td>
-              <td>{formatNumber(item.orders || item.count || 0)}</td>
-              <td>{formatMoney(item.revenue || 0)}</td>
-              <td>{formatMoney(item.aov || 0)}</td>
+              <td>{n(item.orders || item.count || 0)}</td>
+              <td>{money(item.revenue || 0)}</td>
+              <td>{money(item.aov || 0)}</td>
             </tr>
           ))}
         </tbody>
