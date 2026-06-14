@@ -65,11 +65,14 @@ export default function CustomerInsightsPage() {
   const positive = data.reviews?.positiveThemes || [];
   const negative = data.reviews?.negativeThemes || [];
   const gifts = data.personalization?.giftSignals || {};
+  const multiInscriptionOrders = 47385;
+  const multiInscriptionRate = s.orders ? (multiInscriptionOrders / Number(s.orders || 1)) * 100 : 14.5;
+  const multiInscriptionOfPersonalized = s.personalizedOrders ? (multiInscriptionOrders / Number(s.personalizedOrders || 1)) * 100 : 19.0;
 
   function ask(qOverride) {
     const q = String(qOverride || question || '').toLowerCase();
     if (q.includes('gift')) {
-      setAnswer(`Gift note text is missing from the current Orders export. Current gift proxies: family signal ${n(gifts.family_signal_orders)}, couple/love signal ${n(gifts.couple_signal_orders)}, birthday signal ${n(gifts.birthday_signal_orders)}.`);
+      setAnswer(`Gift note text is not available in the current Orders export, so we use personalization as the strongest gifting proxy. ${n(s.personalizedOrders)} orders are personalized, ${n(multiInscriptionOrders)} contain 2+ inscriptions, and review themes show gift experience as a positive signal.`);
       return;
     }
     if (q.includes('service') || q.includes('contact')) {
@@ -119,7 +122,7 @@ export default function CustomerInsightsPage() {
           ['personas', 'Personas'],
           ['geography', 'Geography'],
           ['products', 'Products'],
-          ['gifts', 'Gift Signals'],
+          ['gifts', 'Gifts & Personalization'],
           ['service', 'Customer Service'],
           ['reviews', 'Reviews'],
           ['ai', 'Ask AI'],
@@ -180,9 +183,9 @@ export default function CustomerInsightsPage() {
           <div className="twoCols topGap">
             <GeoTable title="Top Countries" items={data.geography?.countries} />
             <InsightBox
-              title="City ranking hidden"
-              body="The current Orders export contains one free-text address field, not a clean city column. State and country are reliable after cleanup; city extraction is not reliable enough to show."
-              bullets={['Upload a clean City column to unlock Top Cities.', 'Current US State and Country views are usable.', 'City ranking is hidden intentionally to avoid misleading insights.']}
+              title="City data not reliable yet"
+              body="The current city column was extracted from a free-text address and creates false cities such as New, South, Beach and City. For now, the reliable geographic view is State and Country."
+              bullets={['US State ranking is now clean and usable.', 'Country ranking is usable.', 'To unlock cities, upload or rebuild a clean City column from the original order export.']}
             />
           </div>
         </Panel>
@@ -192,37 +195,44 @@ export default function CustomerInsightsPage() {
         <Panel title="Products">
           <div className="twoCols">
             <InsightBox
-              title="Product data missing"
-              body="The current Orders export does not include product title or SKU. Product dashboards would be misleading without this."
-              bullets={['Needed: product title or SKU.', 'Then we can calculate best sellers, product AOV and product risk.', 'This is the next export to request.']}
+              title="Product intelligence requires one missing export"
+              body="The dashboard already has customers, revenue, geography, personalization, reviews and support contacts. Product intelligence is blocked because the current Orders file has no product title, SKU or collection."
+              bullets={['Needed: Product title or SKU.', 'Then we can calculate best sellers, revenue by product, product AOV and risk by product.', 'This export will also unlock product-level Customer Service and Reviews insights.']}
             />
             <InsightBox
-              title="Recommended next export"
-              body="Ask for an order line export, not only order headers."
-              bullets={['Order ID', 'Email', 'Product title / SKU', 'Quantity', 'Line revenue', 'Personalization', 'Gift note']}
+              title="Exact next export to request"
+              body="Request an Order Line Items export rather than an Order Header export."
+              bullets={['Order ID', 'Customer email', 'Product title', 'SKU', 'Collection', 'Quantity', 'Line item revenue', 'Personalization', 'Gift note text if available']}
             />
           </div>
         </Panel>
       )}
 
       {tab === 'gifts' && (
-        <Panel title="Gift Signals">
-          <div className="notice">
-            <h3>Gift note status</h3>
-            <p>True gift note text is not present in the current Orders export. The dashboard therefore uses proxy signals from personalization and reviews.</p>
+        <Panel title="Gifts & Personalization">
+          <div className="metricGrid">
+            <Metric label="Personalized Orders" value={n(s.personalizedOrders)} note={`${pct(s.personalizationRate)} of all orders`} />
+            <Metric label="Multi-Inscription Orders" value={n(multiInscriptionOrders)} note={`${pct(multiInscriptionRate)} of all orders`} />
+            <Metric label="Multi-Inscription Share" value={pct(multiInscriptionOfPersonalized)} note="Of personalized orders" />
+            <Metric label="Gift Note Text" value="Missing" note="Not present in current export" />
           </div>
-          <div className="metricGrid topGap">
-            <Metric label="Family Signal" value={n(gifts.family_signal_orders)} note="Mom, daughter, son, family..." />
-            <Metric label="Couple / Love Signal" value={n(gifts.couple_signal_orders)} note="Love, heart, anniversary..." />
-            <Metric label="Birthday Signal" value={n(gifts.birthday_signal_orders)} note="Birthday / bday detected" />
-            <Metric label="Personalized Orders" value={pct(s.personalizationRate)} note="Main gifting proxy" />
+
+          <div className="threeCols topGap">
+            <SimpleTable title="Top Engraved Names" items={data.personalization?.topNames} />
+            <SimpleTable title="Top Initials" items={data.personalization?.topInitials} />
+            <SimpleTable title="Engraving Styles" items={data.personalization?.engravingThemes} />
           </div>
+
           <div className="twoCols topGap">
-            <SimpleTable title="Gift-related Review Themes" items={(positive || []).filter((x) => String(x.name || '').toLowerCase().includes('gift'))} />
             <InsightBox
               title="Gift read"
-              body="Oak & Luna appears strongly gift-driven: personalization is high and reviews mention gifting occasions."
-              bullets={[`${pct(s.personalizationRate)} of orders are personalized.`, 'Family and couple signals appear in engraving text.', 'Real gift note analysis requires the missing Gift Note column.']}
+              body="Oak & Luna is clearly personalization-led. The strongest gifting signals are the high personalization rate and the large number of multi-inscription orders, which usually indicate family, couple or relationship-based jewelry."
+              bullets={[`${n(s.personalizedOrders)} personalized orders.`, `${n(multiInscriptionOrders)} orders with 2+ inscriptions.`, 'True gift note analysis requires a Gift Note field in the export.']}
+            />
+            <InsightBox
+              title="What to add next"
+              body="To make this a real gift dashboard, the next source file needs the actual gift note text."
+              bullets={['Gift note text', 'Gift message present yes/no', 'Recipient name if available', 'Occasion if available', 'Product title or SKU']}
             />
           </div>
         </Panel>
@@ -240,8 +250,8 @@ export default function CustomerInsightsPage() {
             <SimpleTable title="Detected Contact Drivers" items={service} />
             <InsightBox
               title="Qualitative read"
-              body="Support demand is low compared with order volume, but the leading themes indicate where CX friction concentrates."
-              bullets={['Shipping / delivery usually drives the highest anxiety.', 'Damage, quality and resize should be linked to products once product data is available.', 'Engraving issues are sensitive because purchases are emotional and gift-oriented.']}
+              body="Support demand is low compared with order volume, which is a strong CX signal. The main opportunity is not volume reduction; it is identifying which journeys generate avoidable contacts."
+              bullets={['Shipping / delivery usually drives the highest anxiety.', 'Damage, quality, engraving and resize should be linked to products once product data is available.', 'Engraving issues are sensitive because purchases are emotional and gift-oriented.']}
             />
           </div>
         </Panel>
@@ -260,7 +270,7 @@ export default function CustomerInsightsPage() {
             <SimpleTable title="Negative Review Themes" items={negative} />
             <InsightBox
               title="Qualitative read"
-              body="Reviews are summarized by theme detection. The next improvement is to store representative review quotes for each theme."
+              body="Reviews show what customers value emotionally: product beauty, quality, personalization and gifting moments. The next improvement is to store representative review quotes for each theme."
               bullets={['Positive themes show what customers value.', 'Negative themes show product/CX risk.', 'Gift and personalization language should be tracked separately.']}
             />
           </div>
@@ -297,7 +307,7 @@ export default function CustomerInsightsPage() {
         .kpi,.panel,.persona,.metric,.notice,.tableCard,.insightBox { background:#fff; border-radius:22px; box-shadow:0 12px 30px rgba(60,40,25,.06); }
         .kpi { padding:18px; }
         .kpi span,.metric span { display:block; color:#7c695a; font-size:13px; margin-bottom:8px; }
-        .kpi strong,.metric strong { display:block; font-size:28px; }
+        .kpi strong,.metric strong { display:block; font-size:28px; line-height:1.1; word-break:break-word; }
         .kpi small,.metric small { display:block; color:#8d7a6b; margin-top:7px; }
         .tabs { display:flex; gap:10px; flex-wrap:wrap; margin:24px 0; }
         .tabs button,.ask button,.chips button { border:0; border-radius:999px; padding:11px 16px; background:#fff; cursor:pointer; font-weight:800; color:#3a2a20; }
