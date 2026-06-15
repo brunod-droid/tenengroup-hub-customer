@@ -1,11 +1,18 @@
-
 import { useEffect, useState } from 'react';
 
 const emptyInsights = {
   summary: {},
   geography: { countries: [], states: [], topStatesByOrders: [], topStatesByAov: [] },
   products: { message: '' },
-  personalization: { engravingThemes: [], topNames: [], topInitials: [], giftSignals: {}, giftNoteStatus: '' },
+  personalization: {
+    engravingThemes: [],
+    inscriptionCounts: [],
+    topNames: [],
+    topInitials: [],
+    familySignals: [],
+    relationshipSignals: [],
+  },
+  gifts: { occasions: [], recipients: [], emotions: [] },
   personas: [],
   service: { topReasons: [] },
   reviews: { positiveThemes: [], negativeThemes: [] },
@@ -64,26 +71,27 @@ export default function CustomerInsightsPage() {
   const service = data.service?.topReasons || [];
   const positive = data.reviews?.positiveThemes || [];
   const negative = data.reviews?.negativeThemes || [];
-  const gifts = data.personalization?.giftSignals || {};
-  const multiInscriptionOrders = 47385;
-  const multiInscriptionRate = s.orders ? (multiInscriptionOrders / Number(s.orders || 1)) * 100 : 14.5;
-  const multiInscriptionOfPersonalized = s.personalizedOrders ? (multiInscriptionOrders / Number(s.personalizedOrders || 1)) * 100 : 19.0;
+  const gifts = data.gifts || {};
 
   function ask(qOverride) {
     const q = String(qOverride || question || '').toLowerCase();
+
     if (q.includes('gift')) {
-      setAnswer(`Gift note text is not available in the current Orders export, so we use personalization as the strongest gifting proxy. ${n(s.personalizedOrders)} orders are personalized, ${n(multiInscriptionOrders)} contain 2+ inscriptions, and review themes show gift experience as a positive signal.`);
+      setAnswer(`${n(gifts.giftNotes)} real gift notes were captured. ${n(gifts.loveMessages)} contain love language (${pct(gifts.loveMessageRate)}). Top occasions are ${(gifts.occasions || []).slice(0, 3).map((x) => `${x.name} (${n(x.count)})`).join(', ')}.`);
       return;
     }
+
     if (q.includes('service') || q.includes('contact')) {
       setAnswer(`Contact rate is ${pct(s.contactRate)}. Main drivers: ${service.slice(0, 5).map((x) => `${x.name} (${n(x.count)})`).join(', ')}.`);
       return;
     }
-    if (q.includes('name') || q.includes('engraving')) {
+
+    if (q.includes('name') || q.includes('engraving') || q.includes('inscription')) {
       const names = data.personalization?.topNames || [];
-      setAnswer(`Most common engraved names: ${names.slice(0, 8).map((x) => `${x.name} (${n(x.count)})`).join(', ')}.`);
+      setAnswer(`Top engraved names: ${names.slice(0, 8).map((x) => `${x.name} (${n(x.count)})`).join(', ')}. Multi-inscription orders: ${n(s.multiInscriptionOrders)} (${pct(s.multiInscriptionRate)}).`);
       return;
     }
+
     const states = data.geography?.states || [];
     setAnswer(`Customer snapshot: ${n(s.orders)} orders, ${n(s.customers)} customers, ${money(s.revenue)} revenue, ${pct(s.personalizationRate)} personalized. Top states: ${states.slice(0, 4).map((x) => `${x.name} ${money(x.revenue)}`).join(', ')}.`);
   }
@@ -94,7 +102,7 @@ export default function CustomerInsightsPage() {
         <div>
           <p className="eyebrow">Oak & Luna Customer Intelligence</p>
           <h1>Who Are Our Customers?</h1>
-          <p className="subtitle">Executive dashboards built from Orders, Kustomer conversations and Trustpilot reviews.</p>
+          <p className="subtitle">Executive dashboards built from Orders, inscriptions, gift notes, Kustomer conversations and Trustpilot reviews.</p>
         </div>
         <div className="heroCard">
           <span>Dataset</span>
@@ -122,7 +130,7 @@ export default function CustomerInsightsPage() {
           ['personas', 'Personas'],
           ['geography', 'Geography'],
           ['products', 'Products'],
-          ['gifts', 'Gifts & Personalization'],
+          ['gifts', 'Gift Intelligence'],
           ['service', 'Customer Service'],
           ['reviews', 'Reviews'],
           ['ai', 'Ask AI'],
@@ -143,14 +151,19 @@ export default function CustomerInsightsPage() {
         <Panel title="Customer DNA">
           <div className="metricGrid">
             <Metric label="Personalized Orders" value={pct(s.personalizationRate)} note={`${n(s.personalizedOrders)} orders`} />
-            <Metric label="Non Personalized" value={pct(s.nonPersonalizedRate)} note="Orders without detected personalization" />
+            <Metric label="Multi-Inscription Orders" value={n(s.multiInscriptionOrders)} note={`${pct(s.multiInscriptionRate)} of orders`} />
             <Metric label="Repeat Customers" value={pct(s.repeatCustomerRate)} note={`${n(s.repeatCustomers)} customers`} />
-            <Metric label="One-time Customers" value={pct(100 - Number(s.repeatCustomerRate || 0))} note="Customers with one order" />
+            <Metric label="Gift Notes" value={n(s.giftNotes)} note={`${pct(s.giftNoteRate)} of orders`} />
           </div>
           <div className="threeCols">
-            <SimpleTable title="Most Common Names" items={data.personalization?.topNames} />
-            <SimpleTable title="Most Common Initials" items={data.personalization?.topInitials} />
-            <SimpleTable title="Personalization Themes" items={data.personalization?.engravingThemes} />
+            <SimpleTable title="Top Engraved Names" items={data.personalization?.topNames} />
+            <SimpleTable title="Top Initials" items={data.personalization?.topInitials} />
+            <SimpleTable title="Inscriptions per Order" items={data.personalization?.inscriptionCounts} />
+          </div>
+          <div className="threeCols topGap">
+            <SimpleTable title="Engraving Styles" items={data.personalization?.engravingThemes} />
+            <SimpleTable title="Family Signals in Inscriptions" items={data.personalization?.familySignals} />
+            <SimpleTable title="Relationship Signals in Inscriptions" items={data.personalization?.relationshipSignals} />
           </div>
         </Panel>
       )}
@@ -184,8 +197,8 @@ export default function CustomerInsightsPage() {
             <GeoTable title="Top Countries" items={data.geography?.countries} />
             <InsightBox
               title="City data not reliable yet"
-              body="The current city column was extracted from a free-text address and creates false cities such as New, South, Beach and City. For now, the reliable geographic view is State and Country."
-              bullets={['US State ranking is now clean and usable.', 'Country ranking is usable.', 'To unlock cities, upload or rebuild a clean City column from the original order export.']}
+              body={data.geography?.cityNote || 'City ranking is hidden because the current city column was extracted from free-text addresses and is not reliable enough.'}
+              bullets={['US State ranking is clean and usable.', 'Country ranking is usable.', 'City ranking requires a clean City column.']}
             />
           </div>
         </Panel>
@@ -196,8 +209,8 @@ export default function CustomerInsightsPage() {
           <div className="twoCols">
             <InsightBox
               title="Product intelligence requires one missing export"
-              body="The dashboard already has customers, revenue, geography, personalization, reviews and support contacts. Product intelligence is blocked because the current Orders file has no product title, SKU or collection."
-              bullets={['Needed: Product title or SKU.', 'Then we can calculate best sellers, revenue by product, product AOV and risk by product.', 'This export will also unlock product-level Customer Service and Reviews insights.']}
+              body={data.products?.message || 'Product names/SKUs are not available in the current Orders source file.'}
+              bullets={['Needed: Product title or SKU.', 'Then we can calculate best sellers, product AOV and product risk.', 'This export will also unlock product-level Customer Service and Reviews insights.']}
             />
             <InsightBox
               title="Exact next export to request"
@@ -209,30 +222,28 @@ export default function CustomerInsightsPage() {
       )}
 
       {tab === 'gifts' && (
-        <Panel title="Gifts & Personalization">
+        <Panel title="Gift Intelligence">
           <div className="metricGrid">
-            <Metric label="Personalized Orders" value={n(s.personalizedOrders)} note={`${pct(s.personalizationRate)} of all orders`} />
-            <Metric label="Multi-Inscription Orders" value={n(multiInscriptionOrders)} note={`${pct(multiInscriptionRate)} of all orders`} />
-            <Metric label="Multi-Inscription Share" value={pct(multiInscriptionOfPersonalized)} note="Of personalized orders" />
-            <Metric label="Gift Note Text" value="Missing" note="Not present in current export" />
+            <Metric label="Gift Notes Captured" value={n(gifts.giftNotes)} note={`${n(gifts.matchedGiftOrders)} matched orders`} />
+            <Metric label="Love Messages" value={n(gifts.loveMessages)} note={`${pct(gifts.loveMessageRate)} of gift notes`} />
+            <Metric label="Mother Messages" value={n(gifts.motherMessages)} note="Mom / mother / mama" />
+            <Metric label="Gift Note Rate" value={pct(gifts.giftNoteRate)} note="Gift notes / all orders" />
           </div>
-
           <div className="threeCols topGap">
-            <SimpleTable title="Top Engraved Names" items={data.personalization?.topNames} />
-            <SimpleTable title="Top Initials" items={data.personalization?.topInitials} />
-            <SimpleTable title="Engraving Styles" items={data.personalization?.engravingThemes} />
+            <SimpleTable title="Top Gift Occasions" items={gifts.occasions} />
+            <SimpleTable title="Top Gift Recipients" items={gifts.recipients} />
+            <SimpleTable title="Emotional Themes" items={gifts.emotions} />
           </div>
-
           <div className="twoCols topGap">
             <InsightBox
-              title="Gift read"
-              body="Oak & Luna is clearly personalization-led. The strongest gifting signals are the high personalization rate and the large number of multi-inscription orders, which usually indicate family, couple or relationship-based jewelry."
-              bullets={[`${n(s.personalizedOrders)} personalized orders.`, `${n(multiInscriptionOrders)} orders with 2+ inscriptions.`, 'True gift note analysis requires a Gift Note field in the export.']}
+              title="Gift insight"
+              body="Oak & Luna is primarily an emotional gifting brand. Gift notes are dominated by love, family and milestone occasions."
+              bullets={[`${n(gifts.loveMessages)} gift notes contain love language.`, `${n(gifts.motherMessages)} notes mention mom/mother/mama.`, 'Christmas and Birthday are the dominant occasions.']}
             />
             <InsightBox
-              title="What to add next"
-              body="To make this a real gift dashboard, the next source file needs the actual gift note text."
-              bullets={['Gift note text', 'Gift message present yes/no', 'Recipient name if available', 'Occasion if available', 'Product title or SKU']}
+              title="Business meaning"
+              body="Customers are not only buying jewelry. They are buying a message, a memory and a relationship marker."
+              bullets={['Mother is the largest recipient segment.', 'Multi-inscription orders show family storytelling.', 'Gift notes reveal purchase motivation better than product data alone.']}
             />
           </div>
         </Panel>
@@ -250,7 +261,7 @@ export default function CustomerInsightsPage() {
             <SimpleTable title="Detected Contact Drivers" items={service} />
             <InsightBox
               title="Qualitative read"
-              body="Support demand is low compared with order volume, which is a strong CX signal. The main opportunity is not volume reduction; it is identifying which journeys generate avoidable contacts."
+              body="Support demand is low compared with order volume. The main opportunity is identifying which journeys generate avoidable contacts."
               bullets={['Shipping / delivery usually drives the highest anxiety.', 'Damage, quality, engraving and resize should be linked to products once product data is available.', 'Engraving issues are sensitive because purchases are emotional and gift-oriented.']}
             />
           </div>
@@ -261,16 +272,16 @@ export default function CustomerInsightsPage() {
         <Panel title="Review Intelligence">
           <div className="metricGrid">
             <Metric label="Trustpilot Score" value={Number(s.trustpilotScore || 0).toFixed(1)} note={`${n(s.reviews)} reviews`} />
-            <Metric label="Positive Mentions" value={n(positive.reduce((a, b) => a + Number(b.count || 0), 0))} note="Detected 4-5 star themes" />
-            <Metric label="Negative Mentions" value={n(negative.reduce((a, b) => a + Number(b.count || 0), 0))} note="Detected 1-3 star themes" />
+            <Metric label="Positive Mentions" value={n((data.reviews?.positiveThemes || []).reduce((a, b) => a + Number(b.count || 0), 0))} note="Detected 4-5 star themes" />
+            <Metric label="Negative Mentions" value={n((data.reviews?.negativeThemes || []).reduce((a, b) => a + Number(b.count || 0), 0))} note="Detected 1-3 star themes" />
             <Metric label="Review Volume" value={n(s.reviews)} note="Trustpilot reviews imported" />
           </div>
           <div className="threeCols topGap">
-            <SimpleTable title="Positive Review Themes" items={positive} />
-            <SimpleTable title="Negative Review Themes" items={negative} />
+            <SimpleTable title="Positive Review Themes" items={data.reviews?.positiveThemes} />
+            <SimpleTable title="Negative Review Themes" items={data.reviews?.negativeThemes} />
             <InsightBox
               title="Qualitative read"
-              body="Reviews show what customers value emotionally: product beauty, quality, personalization and gifting moments. The next improvement is to store representative review quotes for each theme."
+              body="Reviews show what customers value emotionally: product beauty, quality, personalization and gifting moments."
               bullets={['Positive themes show what customers value.', 'Negative themes show product/CX risk.', 'Gift and personalization language should be tracked separately.']}
             />
           </div>
@@ -279,13 +290,13 @@ export default function CustomerInsightsPage() {
 
       {tab === 'ai' && (
         <Panel title="Ask AI">
-          <p className="muted">V6 answers from cached full-dataset dashboard insights. Full OpenAI free-form analysis can be added after dashboards are finalized.</p>
+          <p className="muted">V8 answers from cached full-dataset dashboard insights.</p>
           <div className="ask">
             <input value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Ask anything about Oak & Luna customers..." />
             <button onClick={() => ask()}>Ask</button>
           </div>
           <div className="chips">
-            {['Which states generate the most revenue?', 'Which names are most engraved?', 'What gift signals do we see?', 'Why do customers contact service?'].map((q) => (
+            {['Which states generate the most revenue?', 'Which names are most engraved?', 'What do gift notes tell us?', 'Why do customers contact service?'].map((q) => (
               <button key={q} onClick={() => { setQuestion(q); ask(q); }}>{q}</button>
             ))}
           </div>
@@ -304,10 +315,10 @@ export default function CustomerInsightsPage() {
         .heroCard strong { display:block; font-size:34px; margin:8px 0; }
         .status { margin:20px 0; padding:14px 18px; background:#fff8dc; border:1px solid #eadc9c; border-radius:16px; }
         .kpis { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
-        .kpi,.panel,.persona,.metric,.notice,.tableCard,.insightBox { background:#fff; border-radius:22px; box-shadow:0 12px 30px rgba(60,40,25,.06); }
+        .kpi,.panel,.persona,.metric,.tableCard,.insightBox { background:#fff; border-radius:22px; box-shadow:0 12px 30px rgba(60,40,25,.06); }
         .kpi { padding:18px; }
         .kpi span,.metric span { display:block; color:#7c695a; font-size:13px; margin-bottom:8px; }
-        .kpi strong,.metric strong { display:block; font-size:28px; line-height:1.1; word-break:break-word; }
+        .kpi strong,.metric strong { display:block; font-size:28px; line-height:1.1; }
         .kpi small,.metric small { display:block; color:#8d7a6b; margin-top:7px; }
         .tabs { display:flex; gap:10px; flex-wrap:wrap; margin:24px 0; }
         .tabs button,.ask button,.chips button { border:0; border-radius:999px; padding:11px 16px; background:#fff; cursor:pointer; font-weight:800; color:#3a2a20; }
@@ -317,16 +328,18 @@ export default function CustomerInsightsPage() {
         .takeaways { display:grid; gap:10px; }
         .takeaways div { background:#f7f3ef; padding:14px; border-radius:16px; line-height:1.5; }
         .metricGrid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
-        .metric,.notice,.insightBox { padding:18px; border:1px solid #f0e6dd; }
-        .notice h3,.insightBox h3 { margin-top:0; }
-        .notice p,.insightBox p,.insightBox li { color:#6f5b4c; line-height:1.5; }
+        .metric,.insightBox { padding:18px; border:1px solid #f0e6dd; }
+        .insightBox h3 { margin-top:0; }
+        .insightBox p,.insightBox li { color:#6f5b4c; line-height:1.5; }
         .insightBox ul { padding-left:20px; margin-bottom:0; }
         .threeCols { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
         .twoCols { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
         .topGap { margin-top:16px; }
-        .personaGrid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+        .personaGrid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; }
         .persona { padding:20px; border:1px solid #f0e6dd; }
-        .miniStats { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+        .persona h3 { margin:0 0 8px; }
+        .persona p { color:#6f5b4c; min-height:60px; }
+        .miniStats { display:grid; grid-template-columns:1fr; gap:8px; }
         .miniStats span { background:#f7f3ef; border-radius:12px; padding:10px; font-size:13px; }
         .miniStats b { display:block; margin-top:4px; font-size:16px; }
         .tableCard { overflow:hidden; border:1px solid #eee3d9; }
