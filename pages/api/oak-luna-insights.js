@@ -34,8 +34,13 @@ function tableUrl(table, query = '') {
 }
 
 export default async function handler(req, res) {
-  if (!supabaseUrl || !supabaseKey) return send(res, 500, { error: 'Supabase env variables are missing.' });
-  if (req.method !== 'GET') return send(res, 405, { error: 'Method not allowed.' });
+  if (!supabaseUrl || !supabaseKey) {
+    return send(res, 500, { error: 'Supabase env variables are missing.' });
+  }
+
+  if (req.method !== 'GET') {
+    return send(res, 405, { error: 'Method not allowed.' });
+  }
 
   try {
     const response = await fetch(
@@ -46,9 +51,14 @@ export default async function handler(req, res) {
     const text = await response.text();
     const rows = text ? JSON.parse(text) : [];
 
-    if (!response.ok) return send(res, 500, { error: `Cache read failed: ${text || response.statusText}` });
+    if (!response.ok) {
+      return send(res, 500, { error: `Cache read failed: ${text || response.statusText}` });
+    }
+
     if (!Array.isArray(rows) || rows.length === 0) {
-      return send(res, 404, { error: 'No Oak & Luna insights cache found. Run supabase/oak_luna_refresh_insights_cache.sql first.' });
+      return send(res, 404, {
+        error: 'No Oak & Luna insights cache found. Run supabase/oak_luna_refresh_insights_cache.sql in Supabase first.',
+      });
     }
 
     return send(res, 200, rows[0].payload);
