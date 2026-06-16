@@ -38,11 +38,38 @@ export default async function handler(req, res) {
     return send(res, 500, { error: 'Supabase env variables are missing.' });
   }
 
-  if (req.method !== 'GET') {
-    return send(res, 405, { error: 'Method not allowed.' });
-  }
-
   try {
+    if (req.method === 'POST') {
+      const body = req.body || {};
+
+      if (body.action === 'update_vip_status') {
+        const payload = {
+          customer_key: body.customer_key,
+          vip_status: body.vip_status,
+          vip_score: body.vip_score || null,
+          notes: body.notes || null,
+          reviewed_at: new Date().toISOString(),
+          reviewed_by: 'dashboard',
+        };
+
+        const response = await fetch(tableUrl('oak_luna_vip_reviews', 'on_conflict=customer_key'), {
+          method: 'POST',
+          headers: headers({ Prefer: 'resolution=merge-duplicates,return=representation' }),
+          body: JSON.stringify(payload),
+        });
+
+        const text = await response.text();
+        if (!response.ok) return send(res, 500, { error: `VIP update failed: ${text}` });
+        return send(res, 200, { ok: true });
+      }
+
+      return send(res, 400, { error: 'Unknown action.' });
+    }
+
+    if (req.method !== 'GET') {
+      return send(res, 405, { error: 'Method not allowed.' });
+    }
+
     const response = await fetch(
       tableUrl('oak_luna_insights_cache', 'select=payload,generated_at&id=eq.latest&limit=1'),
       { method: 'GET', headers: headers() }
@@ -51,14 +78,9 @@ export default async function handler(req, res) {
     const text = await response.text();
     const rows = text ? JSON.parse(text) : [];
 
-    if (!response.ok) {
-      return send(res, 500, { error: `Cache read failed: ${text || response.statusText}` });
-    }
-
+    if (!response.ok) return send(res, 500, { error: `Cache read failed: ${text || response.statusText}` });
     if (!Array.isArray(rows) || rows.length === 0) {
-      return send(res, 404, {
-        error: 'No Oak & Luna insights cache found. Run supabase/oak_luna_refresh_insights_cache.sql in Supabase first.',
-      });
+      return send(res, 404, { error: 'No Oak & Luna insights cache found. Run supabase/oak_luna_refresh_insights_cache.sql first.' });
     }
 
     return send(res, 200, rows[0].payload);
