@@ -78,24 +78,77 @@ export default function CustomerInsightsPage() {
     return vipCandidates.filter((c) => (c.vip_status || 'pending') === vipFilter);
   }, [vipCandidates, vipFilter]);
 
+  function cleanEngravingName(value) {
+    return String(value || '')
+      .replace(/Chain length:.*/gi, '')
+      .replace(/Ring size:.*/gi, '')
+      .replace(/Bracelet size:.*/gi, '')
+      .replace(/Necklace length:.*/gi, '')
+      .replace(/Initials?:/gi, '')
+      .replace(/Inscription(?:\s+#\d+)?:/gi, '')
+      .replace(/[|•]+/g, ' ')
+      .trim();
+  }
+
+  function splitEngravingValue(value) {
+    const cleaned = cleanEngravingName(value);
+    if (!cleaned) return [];
+
+    return cleaned
+      .split(/\s*(?:,|&|\+|\/|\band\b|\bor\b|\n|\r)\s*/i)
+      .map((x) => x.trim())
+      .filter((x) => x && x.length > 1)
+      .filter((x) => !/^chain length/i.test(x))
+      .filter((x) => !/^ring size/i.test(x))
+      .slice(0, 8);
+  }
+
   function extractPersonalizedNames(candidate) {
-    return String(candidate.engraving_signal || '')
-      .replace(/Chain length:.*/gi, ' ')
-      .replace(/Ring size:.*/gi, ' ')
-      .match(/(?:Inscription(?:\s+#\d+)?:|Initial\s+#?\d*:)\s*([^"\r\n]+)/gi)
-      ?.map((x) => x.replace(/Inscription(?:\s+#\d+)?:/gi, '').replace(/Initial\s+#?\d*:/gi, '').trim())
-      .filter(Boolean)
-      .slice(0, 5) || [];
+    const source = String(candidate.engraving_signal || '');
+    const matches = [...source.matchAll(/(?:Inscription(?:\s+#\d+)?:|Initial\s+#?\d*:)\s*([^"\r\n]+?)(?=\s+Inscription|\s+Initial|\s+Chain length|\s+Ring size|\s*$)/gi)];
+
+    const extracted = matches.flatMap((match) => splitEngravingValue(match[1]));
+
+    if (extracted.length === 0) {
+      return splitEngravingValue(source);
+    }
+
+    return [...new Set(extracted)].slice(0, 8);
+  }
+
+  function formatNameListForPrompt(names) {
+    if (!names || names.length === 0) return '';
+    if (names.length === 1) return `"${names[0]}"`;
+    if (names.length === 2) return `"${names[0]}" and/or "${names[1]}"`;
+    return `${names.slice(0, -1).map((x) => `"${x}"`).join(', ')} and/or "${names[names.length - 1]}"`;
+  }
+
+  function vipResearchPrompt(candidate) {
+    const names = extractPersonalizedNames(candidate);
+    return [
+      `Is "${candidate.first_name} ${candidate.last_name}" likely to be a public figure, celebrity, athlete, influencer, founder, or high-profile person?`,
+      names.length ? `Check whether these personalized names are publicly connected family/relationship names: ${formatNameListForPrompt(names)}` : '',
+      `Only use public information. Give confidence level and short reasoning.`
+    ].filter(Boolean).join(' ');
   }
 
   function googleAiModeUrl(candidate) {
+    return `https://www.google.com/search?udm=50&q=${encodeURIComponent(vipResearchPrompt(candidate))}`;
+  }
+
+  function googleClassicUrl(candidate) {
     const names = extractPersonalizedNames(candidate);
-    const prompt = [
-      `Is "${candidate.first_name} ${candidate.last_name}" likely to be a public figure, celebrity, athlete, influencer, founder, or high-profile person?`,
-      names.length ? `Check whether these personalized names are publicly connected family/relationship names: ${names.map((x) => `"${x}"`).join(' ')}` : '',
-      `Only use public information. Give confidence level and short reasoning.`
-    ].filter(Boolean).join(' ');
-    return `https://www.google.com/search?udm=50&q=${encodeURIComponent(prompt)}`;
+    const query = [`"${candidate.first_name} ${candidate.last_name}"`, ...names.map((x) => `"${x}"`)].join(' ');
+    return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+  }
+
+  async function copyVipPrompt(candidate) {
+    try {
+      await navigator.clipboard.writeText(vipResearchPrompt(candidate));
+      alert('VIP research prompt copied.');
+    } catch (error) {
+      alert(vipResearchPrompt(candidate));
+    }
   }
 
   async function markVip(candidate, nextStatus) {
@@ -198,7 +251,7 @@ export default function CustomerInsightsPage() {
         <Panel title="VIP / Celebrity Intelligence">
           <div className="notice">
             <h3>Scoring logic</h3>
-            <p>Score = Name matchability 25 + Personalized names 30 + Premium location 20 + Order value 15 + Email signal 10. Repeat rate is intentionally not used.</p>
+            <p>Score = Name matchability 25 + Personalized engraving signal 30 + Premium location 20 + Order value 15 + Email signal 10. Repeat rate is intentionally not used. Research prompts split engraving names separately, for example "Jake" and/or "Sloane", instead of combining them.</p>
           </div>
           <div className="chips topGap">
             {['pending', 'vip', 'celebrity', 'done', 'all'].map((f) => (
@@ -213,10 +266,13 @@ export default function CustomerInsightsPage() {
                   <span>{c.state || ''} {c.country || ''} · Max order {money(c.max_order_value)}</span>
                   <small>{String(c.engraving_signal || '').slice(0, 180)}</small>
                   <small>Score detail: name {n(c.name_score)} · personalized names {n(c.personalization_score)} · location {n(c.location_score)} · order {n(c.order_value_score)} · email {n(c.email_score)}</small>
+                  <small>Prompt names: {extractPersonalizedNames(c).map((x) => `"${x}"`).join(' · ') || 'No extracted engraving names'}</small>
                 </div>
                 <div className="vipScore">{n(c.vip_score)}</div>
                 <div className="vipActions">
                   <a href={googleAiModeUrl(c)} target="_blank" rel="noreferrer">AI Mode Research</a>
+                  <a href={googleClassicUrl(c)} target="_blank" rel="noreferrer">Google Search</a>
+                  <button onClick={() => copyVipPrompt(c)}>Copy Prompt</button>
                   <button onClick={() => markVip(c, 'done')}>Done</button>
                   <button onClick={() => markVip(c, 'vip')}>VIP</button>
                   <button onClick={() => markVip(c, 'celebrity')}>Celebrity</button>
