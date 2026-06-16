@@ -33,6 +33,40 @@ function tableUrl(table, query = '') {
   return query ? `${base}?${query}` : base;
 }
 
+async function fetchVipReviews() {
+  const response = await fetch(tableUrl('oak_luna_vip_reviews', 'select=customer_key,vip_status,notes,reviewed_at'), {
+    method: 'GET',
+    headers: headers(),
+  });
+
+  const text = await response.text();
+  if (!response.ok) return {};
+
+  const rows = text ? JSON.parse(text) : [];
+  return Object.fromEntries(rows.map((row) => [row.customer_key, row]));
+}
+
+function mergeVipStatuses(payload, reviewMap) {
+  const candidates = payload?.vip?.candidates || [];
+  return {
+    ...payload,
+    vip: {
+      ...(payload.vip || {}),
+      candidates: candidates.map((candidate) => {
+        const review = reviewMap[candidate.customer_key];
+        return review
+          ? {
+              ...candidate,
+              vip_status: review.vip_status || candidate.vip_status || 'pending',
+              notes: review.notes || candidate.notes || null,
+              reviewed_at: review.reviewed_at || candidate.reviewed_at || null,
+            }
+          : candidate;
+      }),
+    },
+  };
+}
+
 export default async function handler(req, res) {
   if (!supabaseUrl || !supabaseKey) {
     return send(res, 500, { error: 'Supabase env variables are missing.' });
@@ -60,6 +94,7 @@ export default async function handler(req, res) {
 
         const text = await response.text();
         if (!response.ok) return send(res, 500, { error: `VIP update failed: ${text}` });
+
         return send(res, 200, { ok: true });
       }
 
@@ -83,7 +118,10 @@ export default async function handler(req, res) {
       return send(res, 404, { error: 'No Oak & Luna insights cache found. Run supabase/oak_luna_refresh_insights_cache.sql first.' });
     }
 
-    return send(res, 200, rows[0].payload);
+    const reviewMap = await fetchVipReviews();
+    const payload = mergeVipStatuses(rows[0].payload, reviewMap);
+
+    return send(res, 200, payload);
   } catch (error) {
     return send(res, 500, { error: error.message || 'Unexpected insights API error.' });
   }
