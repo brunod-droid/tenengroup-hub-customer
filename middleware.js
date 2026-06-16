@@ -1,38 +1,31 @@
-import { NextResponse } from "next/server";
+import { NextResponse } from 'next/server';
 
-function checkBasicAuth(request, expectedPassword, realm) {
-  if (!expectedPassword) return NextResponse.next();
+export function middleware(request) {
+  const auth = request.headers.get('authorization');
+  const username = process.env.SITE_USERNAME;
+  const password = process.env.SITE_PASSWORD;
 
-  const basicAuth = request.headers.get("authorization");
+  if (!username || !password) {
+    return new Response('Site password is not configured.', { status: 500 });
+  }
 
-  if (basicAuth) {
-    const value = basicAuth.split(" ")[1];
-    const decoded = atob(value);
-    const [, inputPassword] = decoded.split(":");
+  if (auth) {
+    const token = auth.split(' ')[1] || '';
+    const [user, pass] = Buffer.from(token, 'base64').toString().split(':');
 
-    if (inputPassword === expectedPassword) {
+    if (user === username && pass === password) {
       return NextResponse.next();
     }
   }
 
-  return new NextResponse("Authentication required", {
+  return new Response('Authentication required', {
     status: 401,
     headers: {
-      "WWW-Authenticate": `Basic realm="${realm}"`
-    }
+      'WWW-Authenticate': 'Basic realm="Protected Site"',
+    },
   });
 }
 
-export function middleware(request) {
-  const { pathname } = request.nextUrl;
-
-  if (pathname.startsWith("/yves-rocher-reporting/finance")) {
-    return checkBasicAuth(request, process.env.YR_FINANCE_PASSWORD || "YRFinance", "Yves Rocher Finance");
-  }
-
-  return NextResponse.next();
-}
-
 export const config = {
-  matcher: ["/yves-rocher-reporting/finance/:path*", "/yves-rocher-reporting/finance"]
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|robots.txt).*)'],
 };
