@@ -320,7 +320,11 @@ export default function CustomerInsightsPage() {
             <SimpleTable title="All Contact Drivers" items={data.service?.topReasons} />
             <SimpleTable title="Focus: Other / Damaged / Resize / Engraving" items={data.service?.focusReasons} />
           </div>
-          <InsightBox title="Service read" body="Shipping drives volume, but the most actionable quality insights are in Other, Damaged, Resize and Engraving. Those categories should be reviewed manually because they often reveal product or policy friction." />
+          <div className="twoCols topGap">
+            <SimpleTable title="Kustomer Topics" items={data.service?.topics} />
+            <SimpleTable title="CSAT Distribution" items={data.service?.csat} />
+          </div>
+          <InsightBox title="Service read" body="Kustomer is now mapped with customer name, email, order number, disposition topics, CSAT and first message. Shipping drives volume, but the most actionable insights are in Other, Damaged, Resize and Engraving." />
         </Panel>
       )}
 
