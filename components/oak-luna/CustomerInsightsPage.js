@@ -3,12 +3,12 @@ import { useEffect, useMemo, useState } from 'react';
 const emptyInsights = {
   summary: {},
   geography: { countries: [], states: [], topStatesByOrders: [], topStatesByAov: [] },
-  products: { bestSellers: [], topRevenue: [], topPersonalized: [], byRegion: [], willowInitials: [], belleCharacters: [] },
+  products: { bestSellers: [], topRevenue: [], topPersonalized: [], byRegion: [], willowInitials: [], belleCharacters: [], withGiftNotes: [], withServiceContacts: [], withReviews: [] },
   personalization: { topNames: [], topInitials: [], inscriptionCounts: [] },
-  gifts: { occasions: [], recipients: [], emotions: [], lengths: [] },
+  gifts: { occasions: [], recipients: [], emotions: [], lengths: [], personas: [] },
   vip: { candidates: [] },
   service: { topReasons: [], focusReasons: [] },
-  reviews: { positiveThemes: [], negativeThemes: [], ratingDistribution: [] },
+  reviews: { positiveThemes: [], negativeThemes: [], ratingDistribution: [], companyResponse: {}, positiveExamples: [], negativeExamples: [] },
   keyTakeaways: [],
 };
 
@@ -244,6 +244,11 @@ export default function CustomerInsightsPage() {
             <SimpleTable title="Willow: Most Requested Letters" items={data.products?.willowInitials} />
             <SimpleTable title="Belle: Character Count Distribution" items={data.products?.belleCharacters} />
           </div>
+          <div className="threeCols topGap">
+            <SimpleTable title="Products with Gift Notes" items={data.products?.withGiftNotes} />
+            <SimpleTable title="Products with Service Contacts" items={data.products?.withServiceContacts} />
+            <SimpleTable title="Products with Reviews" items={data.products?.withReviews} />
+          </div>
         </Panel>
       )}
 
@@ -296,8 +301,9 @@ export default function CustomerInsightsPage() {
             <SimpleTable title="Top Gift Recipients" items={data.gifts?.recipients} />
             <SimpleTable title="Emotional Themes" items={data.gifts?.emotions} />
           </div>
-          <div className="twoCols topGap">
+          <div className="threeCols topGap">
             <SimpleTable title="Gift Note Length" items={data.gifts?.lengths} />
+            <SimpleTable title="Gift Personas" items={data.gifts?.personas} />
             <InsightBox title="Gift insight" body="Gift notes reveal why customers buy: love, family, mother relationships and milestone occasions. This is stronger motivation data than product mix alone." />
           </div>
         </Panel>
@@ -324,6 +330,13 @@ export default function CustomerInsightsPage() {
             <SimpleTable title="Kustomer Topics" items={data.service?.topics} />
             <SimpleTable title="CSAT Distribution" items={data.service?.csat} />
           </div>
+          <div className="fourCols topGap">
+            <SimpleTable title="Other Breakdown" items={data.service?.otherDetail} />
+            <SimpleTable title="Damaged Breakdown" items={data.service?.damagedDetail} />
+            <SimpleTable title="Resize Breakdown" items={data.service?.resizeDetail} />
+            <SimpleTable title="Engraving Breakdown" items={data.service?.engravingDetail} />
+          </div>
+          <ExampleList title="Representative First Messages" items={data.service?.examples} />
           <InsightBox title="Service read" body="Kustomer is now mapped with customer name, email, order number, disposition topics, CSAT and first message. Shipping drives volume, but the most actionable insights are in Other, Damaged, Resize and Engraving." />
         </Panel>
       )}
@@ -334,6 +347,16 @@ export default function CustomerInsightsPage() {
             <SimpleTable title="Rating Distribution" items={data.reviews?.ratingDistribution} />
             <SimpleTable title="Positive Review Themes" items={data.reviews?.positiveThemes} />
             <SimpleTable title="Negative Review Themes" items={data.reviews?.negativeThemes} />
+          </div>
+          <div className="metricGrid topGap">
+            <Metric label="Company Responses" value={n(data.reviews?.companyResponse?.company_responses)} note={`${data.reviews?.companyResponse?.response_rate || 0}% response rate`} />
+            <Metric label="Reviews Imported" value={n(data.reviews?.companyResponse?.total_reviews)} note="Trustpilot" />
+            <Metric label="Positive Examples" value={n((data.reviews?.positiveExamples || []).length)} note="Representative quotes" />
+            <Metric label="Negative Examples" value={n((data.reviews?.negativeExamples || []).length)} note="Representative quotes" />
+          </div>
+          <div className="twoCols topGap">
+            <ExampleList title="Positive Review Examples" items={data.reviews?.positiveExamples} />
+            <ExampleList title="Negative Review Examples" items={data.reviews?.negativeExamples} />
           </div>
           <InsightBox title="Review read" body="Reviews should be used as qualitative proof points: what customers love, what causes dissatisfaction, and which gift/personalization themes appear in public feedback." />
         </Panel>
@@ -364,9 +387,13 @@ export default function CustomerInsightsPage() {
         .takeaways div { background:#f7f3ef; padding:14px; border-radius:16px; line-height:1.5; }
         .metricGrid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
         .threeCols { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+        .fourCols { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; }
         .twoCols { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
         .topGap { margin-top:16px; }
         .tableCard { overflow:hidden; border:1px solid #eee3d9; }
+        .exampleList { margin-top:16px; padding:18px; }
+        .exampleList h3 { margin:0 0 12px; }
+        .exampleList div { background:#f7f3ef; border-radius:14px; padding:12px; margin-top:8px; color:#6f5b4c; line-height:1.45; }
         .tableCard h3 { margin:0; padding:16px 18px; background:#fbf8f5; border-bottom:1px solid #efe5dc; font-size:18px; }
         .dataTable { width:100%; border-collapse:collapse; table-layout:fixed; }
         .dataTable th { padding:10px 12px; color:#8d7a6b; font-size:11px; text-transform:uppercase; text-align:right; background:#fffaf6; border-bottom:1px solid #f0e8df; white-space:nowrap; }
@@ -380,7 +407,7 @@ export default function CustomerInsightsPage() {
         .vipCard span,.vipCard small,.notice p,.insightBox p { color:#6f5b4c; line-height:1.4; }
         .vipScore { width:58px; height:58px; border-radius:18px; display:flex; align-items:center; justify-content:center; background:#211a16; color:#fff; font-weight:900; font-size:22px; }
         .vipActions { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
-        @media(max-width:1000px){ .page{padding:18px;} .hero,.kpis,.metricGrid,.threeCols,.twoCols,.vipCard{grid-template-columns:1fr;display:grid;} h1{font-size:34px;} }
+        @media(max-width:1000px){ .page{padding:18px;} .hero,.kpis,.metricGrid,.threeCols,.fourCols,.twoCols,.vipCard{grid-template-columns:1fr;display:grid;} h1{font-size:34px;} }
       `}</style>
     </div>
   );
@@ -389,6 +416,21 @@ export default function CustomerInsightsPage() {
 function Panel({ title, children }) { return <section className="panel"><h2 className="panelTitle">{title}</h2>{children}</section>; }
 function Metric({ label, value, note }) { return <div className="metric"><span>{label}</span><strong>{value}</strong><small>{note}</small></div>; }
 function InsightBox({ title, body }) { return <div className="insightBox"><h3>{title}</h3><p>{body}</p></div>; }
+
+function ExampleList({ title, items = [] }) {
+  return (
+    <div className="exampleList tableCard">
+      <h3>{title}</h3>
+      {(!items || items.length === 0) && <div>No examples yet</div>}
+      {(items || []).slice(0, 8).map((item, index) => (
+        <div key={`${title}-${index}`}>
+          <strong>{item.name || item.type || 'Example'}</strong><br />
+          {item.example || item.review_content || item.first_message || ''}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function SimpleTable({ title, items = [], suffix = '' }) {
   return <div className="tableCard"><h3>{title}</h3><table className="dataTable"><thead><tr><th>Name</th><th>Count</th></tr></thead><tbody>{(!items || items.length === 0) && <tr><td>No data yet</td><td>-</td></tr>}{(items || []).slice(0,15).map((item,index)=><tr key={`${title}-${item.name}`}><td><span className="rankBubble">{index+1}</span>{item.name || 'Unknown'}</td><td>{n(item.count || item.orders || 0)}{suffix}</td></tr>)}</tbody></table></div>;
