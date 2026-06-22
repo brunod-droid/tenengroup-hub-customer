@@ -76,6 +76,21 @@ export default async function handler(req, res) {
     if (req.method === 'POST') {
       const body = req.body || {};
 
+
+      if (body.action === 'ask_ai_query') {
+        const response = await fetch(`${supabaseUrl}/rest/v1/rpc/oak_luna_ask_ai`, {
+          method: 'POST',
+          headers: headers({ Prefer: 'return=representation' }),
+          body: JSON.stringify({ q: body.query || '' }),
+        });
+
+        const text = await response.text();
+        if (!response.ok) return send(res, 500, { error: `Ask AI failed: ${text}` });
+
+        const parsed = text ? JSON.parse(text) : null;
+        return send(res, 200, { ok: true, answer: parsed });
+      }
+
       if (body.action === 'update_vip_status') {
         const payload = {
           customer_key: body.customer_key,
