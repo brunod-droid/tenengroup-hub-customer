@@ -57,6 +57,9 @@ export default function CustomerInsightsPage() {
   const [data, setData] = useState(emptyInsights);
   const [status, setStatus] = useState('Loading Oak & Luna customer insights...');
   const [vipFilter, setVipFilter] = useState('pending');
+  const [askQuestion, setAskQuestion] = useState('');
+  const [askAnswer, setAskAnswer] = useState(null);
+  const [askLoading, setAskLoading] = useState(false);
 
   function refresh() {
     return loadInsights()
@@ -151,6 +154,33 @@ export default function CustomerInsightsPage() {
     }
   }
 
+
+  async function askAi(questionOverride) {
+    const query = questionOverride || askQuestion;
+    if (!query) return;
+
+    setAskLoading(true);
+    setAskAnswer(null);
+
+    try {
+      const response = await fetch('/api/oak-luna-insights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'ask_ai_query', query }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || response.statusText);
+
+      setAskQuestion(query);
+      setAskAnswer(data.answer);
+    } catch (error) {
+      setAskAnswer({ error: error.message });
+    } finally {
+      setAskLoading(false);
+    }
+  }
+
   async function markVip(candidate, nextStatus) {
     try {
       await updateVipStatus(candidate, nextStatus);
@@ -201,6 +231,7 @@ export default function CustomerInsightsPage() {
           ['geography', 'Geography'],
           ['service', 'Customer Service'],
           ['reviews', 'Reviews'],
+          ['ask', 'Ask AI'],
         ].map(([id, label]) => <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>{label}</button>)}
       </nav>
 
@@ -362,6 +393,68 @@ export default function CustomerInsightsPage() {
         </Panel>
       )}
 
+
+      {tab === 'ask' && (
+        <Panel title="Ask AI">
+          <div className="notice">
+            <h3>Ask precise questions</h3>
+            <p>Use this for product, geography and engraving questions. Examples: “What is the most popular product in New York?”, “For Willow, which letter is most requested?”, “For Belle, character count distribution”, “Top engravings for Name Necklace in California”.</p>
+          </div>
+
+          <div className="askBox topGap">
+            <input
+              value={askQuestion}
+              onChange={(e) => setAskQuestion(e.target.value)}
+              placeholder="Ask about products, geography, gift notes, engravings..."
+            />
+            <button onClick={() => askAi()} disabled={askLoading}>{askLoading ? 'Searching...' : 'Ask'}</button>
+          </div>
+
+          <div className="chips topGap">
+            {[
+              'What is the most popular product in New York?',
+              'For Willow, which letter is most requested?',
+              'For Belle, character count distribution',
+              'Top engravings in California',
+              'Product summary for Willow'
+            ].map((q) => (
+              <button key={q} onClick={() => askAi(q)}>{q}</button>
+            ))}
+          </div>
+
+          {askAnswer && (
+            <div className="answerBox topGap">
+              {askAnswer.error && <div className="error">{askAnswer.error}</div>}
+              {!askAnswer.error && (
+                <>
+                  <div className="answerMeta">
+                    <strong>Detected product:</strong> {askAnswer.detectedProduct || 'None'}<br />
+                    <strong>Detected region:</strong> {askAnswer.detectedRegion || 'None'}
+                  </div>
+
+                  {askAnswer.productSummary && (
+                    <div className="answerCard">
+                      <h3>Product Summary</h3>
+                      <p>
+                        {askAnswer.productSummary.product}: {n(askAnswer.productSummary.units)} units, {n(askAnswer.productSummary.orders)} orders,
+                        {money(askAnswer.productSummary.revenue)} revenue, AOV {money(askAnswer.productSummary.aov)}.
+                        Gift notes: {n(askAnswer.productSummary.giftNotes)}, Service contacts: {n(askAnswer.productSummary.serviceContacts)}, Reviews: {n(askAnswer.productSummary.reviews)}.
+                      </p>
+                    </div>
+                  )}
+
+                  {askAnswer.topProductsInRegion && <AskTable title="Top Products in Region" items={askAnswer.topProductsInRegion} />}
+                  {askAnswer.initialDemand && <AskTable title="Initial / Letter Demand" items={askAnswer.initialDemand} />}
+                  {askAnswer.characterDistribution && <AskTable title="Character Distribution" items={askAnswer.characterDistribution} />}
+                  {askAnswer.topEngravings && <AskTable title="Top Engravings" items={askAnswer.topEngravings} />}
+                </>
+              )}
+            </div>
+          )}
+        </Panel>
+      )}
+
+
       <style jsx>{`
         .page { min-height:100vh; padding:32px; background:#f7f3ef; color:#211a16; font-family:Inter,Arial,sans-serif; }
         .hero { display:flex; justify-content:space-between; gap:24px; align-items:center; padding:34px; border-radius:30px; background:linear-gradient(135deg,#fff,#eaded2); box-shadow:0 20px 45px rgba(60,40,25,.08); }
@@ -394,6 +487,12 @@ export default function CustomerInsightsPage() {
         .exampleList { margin-top:16px; padding:18px; }
         .exampleList h3 { margin:0 0 12px; }
         .exampleList div { background:#f7f3ef; border-radius:14px; padding:12px; margin-top:8px; color:#6f5b4c; line-height:1.45; }
+        .askBox { display:flex; gap:10px; }
+        .askBox input { flex:1; padding:14px 16px; border:1px solid #e2d5ca; border-radius:999px; font-size:15px; }
+        .askBox button { border:0; border-radius:999px; padding:14px 18px; background:#211a16; color:#fff; font-weight:900; cursor:pointer; }
+        .answerBox { display:grid; gap:14px; }
+        .answerMeta,.answerCard { background:#fff; border:1px solid #eee3d9; border-radius:18px; padding:16px; }
+        .error { background:#ffe8e8; border:1px solid #f0b0b0; color:#7a1c1c; border-radius:14px; padding:14px; }
         .tableCard h3 { margin:0; padding:16px 18px; background:#fbf8f5; border-bottom:1px solid #efe5dc; font-size:18px; }
         .dataTable { width:100%; border-collapse:collapse; table-layout:fixed; }
         .dataTable th { padding:10px 12px; color:#8d7a6b; font-size:11px; text-transform:uppercase; text-align:right; background:#fffaf6; border-bottom:1px solid #f0e8df; white-space:nowrap; }
@@ -434,6 +533,32 @@ function ExampleList({ title, items = [] }) {
 
 function SimpleTable({ title, items = [], suffix = '' }) {
   return <div className="tableCard"><h3>{title}</h3><table className="dataTable"><thead><tr><th>Name</th><th>Count</th></tr></thead><tbody>{(!items || items.length === 0) && <tr><td>No data yet</td><td>-</td></tr>}{(items || []).slice(0,15).map((item,index)=><tr key={`${title}-${item.name}`}><td><span className="rankBubble">{index+1}</span>{item.name || 'Unknown'}</td><td>{n(item.count || item.orders || 0)}{suffix}</td></tr>)}</tbody></table></div>;
+}
+
+
+function AskTable({ title, items = [] }) {
+  return (
+    <div className="tableCard">
+      <h3>{title}</h3>
+      <table className="dataTable">
+        <thead>
+          <tr>
+            {items?.[0] && Object.keys(items[0]).slice(0, 4).map((key) => <th key={key}>{key}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {(!items || items.length === 0) && <tr><td>No data</td></tr>}
+          {(items || []).slice(0, 20).map((item, index) => (
+            <tr key={`${title}-${index}`}>
+              {Object.keys(item).slice(0, 4).map((key) => (
+                <td key={key}>{typeof item[key] === 'number' ? n(item[key]) : item[key]}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 function GeoTable({ title, items = [] }) {
