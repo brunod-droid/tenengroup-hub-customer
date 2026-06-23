@@ -438,14 +438,16 @@ export default function CustomerInsightsPage() {
                       <p>
                         {askAnswer.productSummary.product}: {n(askAnswer.productSummary.units)} units, {n(askAnswer.productSummary.orders)} orders,
                         {money(askAnswer.productSummary.revenue)} revenue, AOV {money(askAnswer.productSummary.aov)}.
-                        Gift notes: {n(askAnswer.productSummary.giftNotes)}, Service contacts: {n(askAnswer.productSummary.serviceContacts)}, Reviews: {n(askAnswer.productSummary.reviews)}.
+                        Gift notes: {n(askAnswer.productSummary.giftNotes)}.
                       </p>
                     </div>
                   )}
 
                   {askAnswer.topProductsInRegion && <AskTable title="Top Products in Region" items={askAnswer.topProductsInRegion} />}
                   {askAnswer.initialDemand && <AskTable title="Initial / Letter Demand" items={askAnswer.initialDemand} />}
+                  {askAnswer.initialDemandNote && <div className="answerCard"><p>{askAnswer.initialDemandNote}</p></div>}
                   {askAnswer.characterDistribution && <AskTable title="Character Distribution" items={askAnswer.characterDistribution} />}
+                  {askAnswer.characterDistributionNote && <div className="answerCard"><p>{askAnswer.characterDistributionNote}</p></div>}
                   {askAnswer.topEngravings && <AskTable title="Top Engravings" items={askAnswer.topEngravings} />}
                 </>
               )}
