@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 const emptyInsights = {
   summary: {},
   geography: { countries: [], states: [], topStatesByOrders: [], topStatesByAov: [] },
-  products: { bestSellers: [], topRevenue: [], topPersonalized: [], byRegion: [], willowInitials: [], belleCharacters: [], withGiftNotes: [], withServiceContacts: [], withReviews: [] },
+  products: { bestSellers: [], topRevenue: [], topPersonalized: [], byRegion: [], willowInitials: [], belleCharacters: [], withGiftNotes: [], withServiceContacts: [], withReviews: [], addons: [], addonWithProducts: [] },
   personalization: { topNames: [], topInitials: [], inscriptionCounts: [] },
   gifts: { occasions: [], recipients: [], emotions: [], lengths: [], personas: [] },
   vip: { candidates: [] },
@@ -263,7 +263,7 @@ export default function CustomerInsightsPage() {
             <Metric label="Product Lines" value={n(s.productRows)} note="Rows loaded" />
             <Metric label="Product Orders" value={n(s.productOrders)} note="Distinct orders with products" />
             <Metric label="SKUs" value={n(s.skus)} note="Distinct SKUs" />
-            <Metric label="Top Product" value={data.products?.bestSellers?.[0]?.name || '-'} note={`${n(data.products?.bestSellers?.[0]?.units)} units`} />
+            <Metric label="Top Real Product" value={data.products?.bestSellers?.[0]?.name || '-'} note={`${n(data.products?.bestSellers?.[0]?.units)} units`} />
           </div>
           <div className="threeCols topGap">
             <ProductTable title="Best Sellers by Units" items={data.products?.bestSellers} />
@@ -279,6 +279,10 @@ export default function CustomerInsightsPage() {
             <SimpleTable title="Products with Gift Notes" items={data.products?.withGiftNotes} />
             <SimpleTable title="Products with Service Contacts" items={data.products?.withServiceContacts} />
             <SimpleTable title="Products with Reviews" items={data.products?.withReviews} />
+          </div>
+          <div className="twoCols topGap">
+            <ProductTable title="Gift Packaging / Add-ons" items={data.products?.addons} />
+            <SimpleTable title="Real Products Most Bought with Add-ons" items={data.products?.addonWithProducts} />
           </div>
         </Panel>
       )}
