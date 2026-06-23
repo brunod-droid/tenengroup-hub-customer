@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 const emptyInsights = {
   summary: {},
   geography: { countries: [], states: [], topStatesByOrders: [], topStatesByAov: [] },
-  products: { bestSellers: [], topRevenue: [], topPersonalized: [], byRegion: [], willowInitials: [], belleCharacters: [], withGiftNotes: [], withServiceContacts: [], withReviews: [], addons: [], addonWithProducts: [] },
+  products: { bestSellers: [], topRevenue: [], topPersonalized: [], byRegion: [], willowInitials: [], belleCharacters: [], withGiftNotes: [], withServiceContacts: [], withReviews: [] },
   personalization: { topNames: [], topInitials: [], inscriptionCounts: [] },
   gifts: { occasions: [], recipients: [], emotions: [], lengths: [], personas: [] },
   vip: { candidates: [] },
@@ -267,7 +267,7 @@ export default function CustomerInsightsPage() {
           </div>
           <div className="threeCols topGap">
             <ProductTable title="Best Sellers by Units" items={data.products?.bestSellers} />
-            <ProductTable title="Top Products by Revenue" items={data.products?.topRevenue} />
+            <ProductTable title="Top Real Products by Revenue" items={data.products?.topRevenue} />
             <SimpleTable title="Top Personalized Products" items={data.products?.topPersonalized} suffix="%" />
           </div>
           <div className="threeCols topGap">
@@ -281,8 +281,8 @@ export default function CustomerInsightsPage() {
             <SimpleTable title="Products with Reviews" items={data.products?.withReviews} />
           </div>
           <div className="twoCols topGap">
+            <SimpleTable title="Top SKUs" items={data.products?.topSkus} />
             <ProductTable title="Gift Packaging / Add-ons" items={data.products?.addons} />
-            <SimpleTable title="Real Products Most Bought with Add-ons" items={data.products?.addonWithProducts} />
           </div>
         </Panel>
       )}
@@ -447,12 +447,16 @@ export default function CustomerInsightsPage() {
                     </div>
                   )}
 
-                  {askAnswer.topProductsInRegion && <AskTable title="Top Products in Region" items={askAnswer.topProductsInRegion} />}
+                  {askAnswer.topProductsInRegion && <AskTable title="Top Real Products in Region" items={askAnswer.topProductsInRegion} />}
                   {askAnswer.initialDemand && <AskTable title="Initial / Letter Demand" items={askAnswer.initialDemand} />}
                   {askAnswer.initialDemandNote && <div className="answerCard"><p>{askAnswer.initialDemandNote}</p></div>}
                   {askAnswer.characterDistribution && <AskTable title="Character Distribution" items={askAnswer.characterDistribution} />}
                   {askAnswer.characterDistributionNote && <div className="answerCard"><p>{askAnswer.characterDistributionNote}</p></div>}
                   {askAnswer.topEngravings && <AskTable title="Top Engravings" items={askAnswer.topEngravings} />}
+                  {askAnswer.topPersonalizations && <AskTable title="Top Personalizations" items={askAnswer.topPersonalizations} />}
+                  {askAnswer.topPersonalizationsForProduct && <AskTable title="Top Personalizations for Product" items={askAnswer.topPersonalizationsForProduct} />}
+                  {askAnswer.topSkus && <AskTable title="Top SKUs" items={askAnswer.topSkus} />}
+                  {askAnswer.addons && <AskTable title="Gift Packaging / Add-ons" items={askAnswer.addons} />}
                 </>
               )}
             </div>
