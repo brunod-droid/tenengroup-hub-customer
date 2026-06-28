@@ -237,16 +237,60 @@ export default function ActionsPage() {
     }
   }
 
-  async function updateAction(action, patch) {
+  async function updateAction(action, patch, successMessage = "Action updated.") {
     try {
       setLoading(true);
-      await apiRequest(`/api/actions?id=${encodeURIComponent(action.id)}`, { method: "PATCH", body: JSON.stringify(patch) });
+
+      const saved = await apiRequest(`/api/actions?id=${encodeURIComponent(action.id)}`, {
+        method: "PATCH",
+        body: JSON.stringify(patch)
+      });
+
+      setStatusMsg(successMessage);
+
+      if (selectedAction && selectedAction.id === action.id) {
+        setSelectedAction(saved || { ...selectedAction, ...patch, updated_at: new Date().toISOString() });
+      }
+
       await loadActions();
     } catch (error) {
       setStatusMsg(`Update failed: ${error.message}`);
+      alert(`Update failed: ${error.message}`);
     } finally {
       setLoading(false);
     }
+  }
+
+  async function closeAction(action) {
+    await updateAction(
+      action,
+      { status: "done", progress: 100, archived: true },
+      "Action closed. It is now hidden from the default Open view."
+    );
+  }
+
+  async function blockAction(action) {
+    await updateAction(
+      action,
+      { status: "blocked", archived: false },
+      "Action marked as blocked."
+    );
+  }
+
+  async function reopenAction(action) {
+    await updateAction(
+      action,
+      { status: "open", archived: false },
+      "Action reopened."
+    );
+  }
+
+  async function archiveAction(action) {
+    await updateAction(
+      action,
+      { archived: !action.archived },
+      action.archived ? "Action restored." : "Action archived."
+    );
   }
 
   async function addNote(action) {
@@ -351,6 +395,12 @@ export default function ActionsPage() {
           <div style={{ color: "#475467", lineHeight: 1.65 }}>{aiSummary}</div>
         </div>
 
+        {statusMsg && (
+          <div style={{ background: statusMsg.includes("failed") ? "#fff1f3" : "#ecfdf3", color: statusMsg.includes("failed") ? "#b42318" : "#027a48", border: "1px solid " + (statusMsg.includes("failed") ? "#fecdd3" : "#abefc6"), borderRadius: 14, padding: 12, marginBottom: 18, fontWeight: 900 }}>
+            {statusMsg}
+          </div>
+        )}
+
         <div style={{ background: "#fff", border: "1px solid #eaecf0", borderRadius: 18, padding: 18, marginBottom: 18, boxShadow: "0 8px 24px rgba(16,24,40,.06)" }}>
           <div style={{ fontWeight: 950, fontSize: 22, marginBottom: 14 }}>{editingId ? "Edit action" : "Add new action"}</div>
           <div style={{ display: "grid", gridTemplateColumns: "1.5fr .8fr 1fr .7fr .75fr .75fr", gap: 12 }}>
@@ -436,10 +486,10 @@ export default function ActionsPage() {
                             <td style={{ padding: "13px 10px", minWidth: 250 }}>
                               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                                 <button onClick={() => startEdit(action)} style={smallButton}>Edit</button>
-                                {action.status !== "done" && <button onClick={() => updateAction(action, { status:"done", progress:100 })} style={smallButton}>Done</button>}
-                                {action.status !== "blocked" && <button onClick={() => updateAction(action, { status:"blocked" })} style={smallButton}>Blocked</button>}
-                                {action.status !== "open" && <button onClick={() => updateAction(action, { status:"open", archived:false })} style={smallButton}>Reopen</button>}
-                                <button onClick={() => updateAction(action, { archived:!action.archived })} style={smallButton}>{action.archived ? "Restore" : "Archive"}</button>
+                                {action.status !== "done" && <button onClick={() => closeAction(action)} style={smallButton}>Done</button>}
+                                {action.status !== "blocked" && <button onClick={() => blockAction(action)} style={smallButton}>Blocked</button>}
+                                {action.status !== "open" && <button onClick={() => reopenAction(action)} style={smallButton}>Reopen</button>}
+                                <button onClick={() => archiveAction(action)} style={smallButton}>{action.archived ? "Restore" : "Archive"}</button>
                               </div>
                             </td>
                           </tr>
@@ -471,6 +521,13 @@ export default function ActionsPage() {
               <DrawerInfo label="Progress" value={`${selectedAction.progress || 0}%`} />
               <DrawerInfo label="Brand" value={selectedAction.brand || "—"} />
               <DrawerInfo label="Category" value={selectedAction.category || "—"} />
+            </div>
+
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 22 }}>
+              <button onClick={() => closeAction(selectedAction)} style={{ background:"#00c875", color:"#fff", border:"none", borderRadius:10, padding:"10px 12px", fontWeight:900, cursor:"pointer" }}>Close as Done</button>
+              <button onClick={() => blockAction(selectedAction)} style={{ background:"#fdab3d", color:"#fff", border:"none", borderRadius:10, padding:"10px 12px", fontWeight:900, cursor:"pointer" }}>Mark Blocked</button>
+              <button onClick={() => reopenAction(selectedAction)} style={{ background:"#579bfc", color:"#fff", border:"none", borderRadius:10, padding:"10px 12px", fontWeight:900, cursor:"pointer" }}>Reopen</button>
+              <button onClick={() => archiveAction(selectedAction)} style={{ background:"#344054", color:"#fff", border:"none", borderRadius:10, padding:"10px 12px", fontWeight:900, cursor:"pointer" }}>{selectedAction.archived ? "Restore" : "Archive"}</button>
             </div>
 
             <div style={{ marginTop: 24 }}>
