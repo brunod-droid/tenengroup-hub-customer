@@ -5,6 +5,7 @@ const MENU = [
   "Home",
   "Brands",
   "Cases",
+  "Actions",
   "Policies",
   "WISMO Late Zoom",
   "Agent Tools",
@@ -2117,6 +2118,7 @@ export default function Home() {
             <div
               key={m}
               onClick={() => {
+                if (m === "Actions") { window.location.href = "/actions"; return; }
                 if (m === "Analysis") window.location.hash = "analysis";
                 if (m === "Policies") window.location.hash = "policies";
                 setPage(m);
@@ -2165,6 +2167,7 @@ export default function Home() {
             <button onClick={() => { setPage("Policies"); setSearch("not satisfied"); }} style={{ background:"#eef2ff", color:"#3730a3", border:"none", borderRadius:12, padding:"10px 14px", fontWeight:800, cursor:"pointer" }}>Not Satisfied</button>
             <button onClick={() => { setPage("Policies"); setSearch("DNR"); }} style={{ background:"#eef2ff", color:"#3730a3", border:"none", borderRadius:12, padding:"10px 14px", fontWeight:800, cursor:"pointer" }}>DNR</button>
             <button onClick={() => setPage("Social Policy")} style={{ background:"#eef2ff", color:"#3730a3", border:"none", borderRadius:12, padding:"10px 14px", fontWeight:800, cursor:"pointer" }}>Social</button>
+            <button onClick={() => { window.location.href = "/actions"; }} style={{ background:"#15803d", color:"#fff", border:"none", borderRadius:12, padding:"10px 14px", fontWeight:800, cursor:"pointer" }}>Action Board</button>
             <button onClick={() => setPage("Agent Tools")} style={{ background:"#111827", color:"#fff", border:"none", borderRadius:12, padding:"10px 14px", fontWeight:800, cursor:"pointer" }}>All Agent Tools</button>
           </div>
         </Box>
@@ -2172,6 +2175,7 @@ export default function Home() {
         <div style={{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:16, marginBottom:22 }}>
           <SmallCard title="Training" text="20-minute CS overview" onClick={() => setPage("Training")} />
           <SmallCard title="Analysis" text="Business benchmarks and strategic studies" onClick={() => { window.location.hash = "analysis"; setPage("Analysis"); }} />
+          <SmallCard title="Actions" text="Action Board, owners, ETA and reminders" onClick={() => { window.location.href = "/actions"; }} />
 <SmallCard title="Brands" text="Logos, colors, tone of voice and brand reporting" onClick={() => setPage("Brands")} />
           <SmallCard
             title="TheoGrace Design Lab"
