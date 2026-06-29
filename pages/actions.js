@@ -184,7 +184,7 @@ export default function ActionsPage() {
   async function loadActions() {
     try {
       setLoading(true);
-      const rows = await apiRequest("/api/actions?includeClosed=true");
+      const rows = await apiRequest("/api/actions-admin?includeClosed=true");
       setActions(Array.isArray(rows) ? rows : []);
       setStatusMsg("");
     } catch (error) {
@@ -241,7 +241,7 @@ export default function ActionsPage() {
     try {
       setLoading(true);
 
-      const saved = await apiRequest(`/api/actions?id=${encodeURIComponent(action.id)}`, {
+      const saved = await apiRequest(`/api/actions-admin?id=${encodeURIComponent(action.id)}`, {
         method: "PATCH",
         body: JSON.stringify(patch)
       });
@@ -375,7 +375,7 @@ export default function ActionsPage() {
           <div style={{ color: "#d0d5dd" }}>Reference board for Action Board | AI Automatic Email reminders</div>
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <a href="/api/actions?reminder=true" target="_blank" rel="noreferrer" style={{ background: "#fff", color: "#111827", padding: "11px 14px", borderRadius: 12, textDecoration: "none", fontWeight: 900 }}>Reminder JSON</a>
+          <a href="/api/actions?token=YOUR_SECRET_TOKEN" target="_blank" rel="noreferrer" style={{ background: "#fff", color: "#111827", padding: "11px 14px", borderRadius: 12, textDecoration: "none", fontWeight: 900 }}>Reminder JSON</a>
           <button onClick={downloadOpenActions} style={{ background: "#579bfc", color: "#fff", border: "none", borderRadius: 12, padding: "11px 14px", fontWeight: 900, cursor: "pointer" }}>Export open actions</button>
         </div>
       </div>
