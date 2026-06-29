@@ -5,10 +5,49 @@ function getConfig() {
   };
 }
 
+function getExpectedToken() {
+  return process.env.ACTIONS_API_TOKEN || process.env.ACTION_BOARD_API_TOKEN || "";
+}
+
+function getProvidedToken(req) {
+  const queryToken = req.query.token;
+  const auth = req.headers.authorization || "";
+
+  if (queryToken) return String(queryToken);
+
+  if (auth.toLowerCase().startsWith("bearer ")) {
+    return auth.slice(7).trim();
+  }
+
+  return "";
+}
+
+function requireValidToken(req, res) {
+  const expected = getExpectedToken();
+  const provided = getProvidedToken(req);
+
+  if (!expected) {
+    res.status(500).json({ error: "Missing ACTIONS_API_TOKEN environment variable." });
+    return false;
+  }
+
+  if (!provided || provided !== expected) {
+    res.status(401).json({ error: "Unauthorized." });
+    return false;
+  }
+
+  return true;
+}
+
 async function supabaseRequest(path, options = {}) {
   const { url, key } = getConfig();
-  if (!url || !key) throw new Error("Missing Supabase environment variables.");
+
+  if (!url || !key) {
+    throw new Error("Missing Supabase environment variables.");
+  }
+
   const cleanUrl = String(url).replace(/\/rest\/v1\/?$/i, "").replace(/\/+$/, "");
+
   const response = await fetch(`${cleanUrl}/rest/v1/${path}`, {
     ...options,
     headers: {
@@ -19,76 +58,61 @@ async function supabaseRequest(path, options = {}) {
       ...(options.headers || {})
     }
   });
-  if (!response.ok) throw new Error(await response.text() || `Supabase request failed: ${response.status}`);
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || `Supabase request failed: ${response.status}`);
+  }
+
   if (response.status === 204) return null;
   return response.json();
 }
 
 const TABLE = "action_board_actions";
-const CLOSED = ["done", "cancelled", "closed"];
+
+function mapForReminder(row) {
+  return {
+    id: row.id,
+    title: row.title || "",
+    owner_name: row.owner_name || "",
+    owner_email: row.owner_email || "",
+    eta: row.eta || null,
+    status: row.status || "open",
+    context: row.context_notes || "",
+    last_updated: row.updated_at || row.created_at || null
+  };
+}
 
 export default async function handler(req, res) {
   try {
-    if (req.method === "GET") {
-      const { status, owner, includeClosed, reminder } = req.query;
-      let filters = "select=*&order=eta.asc.nullslast,updated_at.desc";
-      if (reminder === "true") filters += "&status=eq.open&archived=eq.false";
-      else if (status && status !== "all") filters += `&status=eq.${encodeURIComponent(status)}`;
-      else if (includeClosed !== "true") filters += "&status=in.(open,blocked)&archived=eq.false";
-      if (owner) filters += `&owner_name=eq.${encodeURIComponent(owner)}`;
-      const rows = await supabaseRequest(`${TABLE}?${filters}`);
-      return res.status(200).json(rows || []);
+    if (req.method !== "GET") {
+      return res.status(405).json({ error: "Method not allowed. This endpoint is read-only." });
     }
 
-    if (req.method === "POST") {
-      const b = req.body || {};
-      if (!b.title) return res.status(400).json({ error: "Missing title." });
-      const rows = await supabaseRequest(TABLE, {
-        method: "POST",
-        body: JSON.stringify({
-          title: b.title,
-          owner_name: b.owner_name || "",
-          owner_email: b.owner_email || "",
-          eta: b.eta || null,
-          status: b.status || "open",
-          priority: b.priority || "medium",
-          brand: b.brand || "",
-          category: b.category || "CS",
-          source: b.source || "AI email",
-          progress: Number(b.progress || 0),
-          context_notes: b.context_notes || "",
-          comments: Array.isArray(b.comments) ? b.comments : [],
-          archived: Boolean(b.archived || false),
-          updated_at: new Date().toISOString()
-        })
-      });
-      return res.status(200).json(rows?.[0] || null);
+    if (!requireValidToken(req, res)) return;
+
+    const includeClosed = req.query.includeClosed === "true";
+    const owner = req.query.owner;
+    const status = req.query.status;
+
+    let filters = "select=id,title,owner_name,owner_email,eta,status,context_notes,updated_at,created_at,archived&order=eta.asc.nullslast,updated_at.desc";
+
+    if (status && status !== "all") {
+      filters += `&status=eq.${encodeURIComponent(status)}`;
+    } else if (!includeClosed) {
+      filters += "&status=in.(open,blocked)";
     }
 
-    if (req.method === "PATCH") {
-      const id = req.query.id || req.body?.id;
-      if (!id) return res.status(400).json({ error: "Missing action id." });
-      const b = req.body || {};
-      const allowed = ["title", "owner_name", "owner_email", "eta", "status", "priority", "brand", "category", "source", "progress", "context_notes", "comments", "archived"];
-      const payload = {};
-      for (const k of allowed) if (Object.prototype.hasOwnProperty.call(b, k)) payload[k] = b[k];
-      if (payload.eta === "") payload.eta = null;
-      if (payload.progress !== undefined) payload.progress = Number(payload.progress || 0);
-      if (payload.status && CLOSED.includes(payload.status)) payload.archived = true;
-      if (payload.status === "open" || payload.status === "blocked") payload.archived = Boolean(payload.archived || false);
-      payload.updated_at = new Date().toISOString();
-      const rows = await supabaseRequest(`${TABLE}?id=eq.${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(payload) });
-      return res.status(200).json(rows?.[0] || null);
+    if (!includeClosed) {
+      filters += "&archived=eq.false";
     }
 
-    if (req.method === "DELETE") {
-      const id = req.query.id || req.body?.id;
-      if (!id) return res.status(400).json({ error: "Missing action id." });
-      await supabaseRequest(`${TABLE}?id=eq.${encodeURIComponent(id)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } });
-      return res.status(200).json({ ok: true });
+    if (owner) {
+      filters += `&owner_name=eq.${encodeURIComponent(owner)}`;
     }
 
-    return res.status(405).json({ error: "Method not allowed." });
+    const rows = await supabaseRequest(`${TABLE}?${filters}`);
+    return res.status(200).json((rows || []).map(mapForReminder));
   } catch (error) {
     return res.status(500).json({ error: error.message || "Actions API error." });
   }
