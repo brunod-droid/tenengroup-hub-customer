@@ -1,19 +1,23 @@
 function getConfig() {
   return {
     url: process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL,
-    key: process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY
+    key:
+      process.env.SUPABASE_SERVICE_ROLE_KEY ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+      process.env.SUPABASE_ANON_KEY
   };
 }
 
 function getExpectedToken() {
-  return process.env.ACTIONS_API_TOKEN || process.env.ACTION_BOARD_API_TOKEN || "";
+  return String(process.env.ACTIONS_API_TOKEN || process.env.ACTION_BOARD_API_TOKEN || "").trim();
 }
 
 function getProvidedToken(req) {
   const queryToken = req.query.token;
   const auth = req.headers.authorization || "";
 
-  if (queryToken) return String(queryToken);
+  if (Array.isArray(queryToken)) return String(queryToken[0] || "").trim();
+  if (queryToken) return String(queryToken).trim();
 
   if (auth.toLowerCase().startsWith("bearer ")) {
     return auth.slice(7).trim();
@@ -26,13 +30,30 @@ function requireValidToken(req, res) {
   const expected = getExpectedToken();
   const provided = getProvidedToken(req);
 
+  if (req.query.debug === "true") {
+    return res.status(200).json({
+      expectedExists: Boolean(expected),
+      expectedLength: expected.length,
+      receivedExists: Boolean(provided),
+      receivedLength: provided.length,
+      receivedPreview: provided ? `${provided.slice(0, 6)}...${provided.slice(-4)}` : null,
+      authHeaderExists: Boolean(req.headers.authorization),
+      queryTokenExists: Boolean(req.query.token)
+    });
+  }
+
   if (!expected) {
     res.status(500).json({ error: "Missing ACTIONS_API_TOKEN environment variable." });
     return false;
   }
 
-  if (!provided || provided !== expected) {
-    res.status(401).json({ error: "Unauthorized." });
+  if (!provided) {
+    res.status(401).json({ error: "Missing token." });
+    return false;
+  }
+
+  if (provided !== expected) {
+    res.status(401).json({ error: "Invalid token." });
     return false;
   }
 
@@ -95,7 +116,8 @@ export default async function handler(req, res) {
     const owner = req.query.owner;
     const status = req.query.status;
 
-    let filters = "select=id,title,owner_name,owner_email,eta,status,context_notes,updated_at,created_at,archived&order=eta.asc.nullslast,updated_at.desc";
+    let filters =
+      "select=id,title,owner_name,owner_email,eta,status,context_notes,updated_at,created_at,archived&order=eta.asc.nullslast,updated_at.desc";
 
     if (status && status !== "all") {
       filters += `&status=eq.${encodeURIComponent(status)}`;
