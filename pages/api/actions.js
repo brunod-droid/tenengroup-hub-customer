@@ -9,16 +9,13 @@ function getConfig() {
 }
 
 function getExpectedToken() {
-  return String(process.env.ACTIONS_API_TOKEN || process.env.ACTION_BOARD_API_TOKEN || "").trim();
+  return String(process.env.ACTIONS_API_TOKEN || "").trim();
 }
 
 function getProvidedToken(req) {
-  const queryToken = req.query.token;
+  if (req.query.token) return String(req.query.token).trim();
+
   const auth = req.headers.authorization || "";
-
-  if (Array.isArray(queryToken)) return String(queryToken[0] || "").trim();
-  if (queryToken) return String(queryToken).trim();
-
   if (auth.toLowerCase().startsWith("bearer ")) {
     return auth.slice(7).trim();
   }
@@ -26,41 +23,63 @@ function getProvidedToken(req) {
   return "";
 }
 
-function requireValidToken(req, res) {
+function validateToken(req, res) {
   const expected = getExpectedToken();
   const provided = getProvidedToken(req);
 
   if (req.query.debug === "true") {
-    return res.status(200).json({
+    res.status(200).json({
+      ok: true,
+      debug: true,
+      bypassReachedApp: true,
       expectedExists: Boolean(expected),
       expectedLength: expected.length,
-      receivedExists: Boolean(provided),
+      receivedToken: Boolean(provided),
       receivedLength: provided.length,
       receivedPreview: provided ? `${provided.slice(0, 6)}...${provided.slice(-4)}` : null,
-      authHeaderExists: Boolean(req.headers.authorization),
-      queryTokenExists: Boolean(req.query.token)
+      queryTokenExists: Boolean(req.query.token),
+      authHeaderExists: Boolean(req.headers.authorization)
     });
+    return false;
   }
 
   if (!expected) {
-    res.status(500).json({ error: "Missing ACTIONS_API_TOKEN environment variable." });
+    res.status(500).json({
+      ok: false,
+      error: "missing ACTIONS_API_TOKEN",
+      bypassReachedApp: true,
+      receivedToken: Boolean(provided)
+    });
     return false;
   }
 
   if (!provided) {
-    res.status(401).json({ error: "Missing token." });
+    res.status(401).json({
+      ok: false,
+      error: "missing token",
+      bypassReachedApp: true,
+      receivedToken: false
+    });
     return false;
   }
 
   if (provided !== expected) {
-    res.status(401).json({ error: "Invalid token." });
+    res.status(401).json({
+      ok: false,
+      error: "invalid token",
+      bypassReachedApp: true,
+      receivedToken: true,
+      receivedLength: provided.length,
+      expectedLength: expected.length,
+      receivedPreview: `${provided.slice(0, 6)}...${provided.slice(-4)}`
+    });
     return false;
   }
 
   return true;
 }
 
-async function supabaseRequest(path, options = {}) {
+async function supabaseRequest(path) {
   const { url, key } = getConfig();
 
   if (!url || !key) {
@@ -70,26 +89,19 @@ async function supabaseRequest(path, options = {}) {
   const cleanUrl = String(url).replace(/\/rest\/v1\/?$/i, "").replace(/\/+$/, "");
 
   const response = await fetch(`${cleanUrl}/rest/v1/${path}`, {
-    ...options,
     headers: {
       apikey: key,
       Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-      Prefer: "return=representation",
-      ...(options.headers || {})
+      "Content-Type": "application/json"
     }
   });
 
   if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || `Supabase request failed: ${response.status}`);
+    throw new Error(await response.text());
   }
 
-  if (response.status === 204) return null;
   return response.json();
 }
-
-const TABLE = "action_board_actions";
 
 function mapForReminder(row) {
   return {
@@ -106,36 +118,40 @@ function mapForReminder(row) {
 
 export default async function handler(req, res) {
   try {
+    res.setHeader("Cache-Control", "no-store");
+
     if (req.method !== "GET") {
-      return res.status(405).json({ error: "Method not allowed. This endpoint is read-only." });
+      return res.status(405).json({
+        ok: false,
+        error: "method not allowed",
+        bypassReachedApp: true
+      });
     }
 
-    if (!requireValidToken(req, res)) return;
+    if (!validateToken(req, res)) return;
 
     const includeClosed = req.query.includeClosed === "true";
-    const owner = req.query.owner;
-    const status = req.query.status;
 
     let filters =
       "select=id,title,owner_name,owner_email,eta,status,context_notes,updated_at,created_at,archived&order=eta.asc.nullslast,updated_at.desc";
 
-    if (status && status !== "all") {
-      filters += `&status=eq.${encodeURIComponent(status)}`;
-    } else if (!includeClosed) {
-      filters += "&status=in.(open,blocked)";
-    }
-
     if (!includeClosed) {
-      filters += "&archived=eq.false";
+      filters += "&status=in.(open,blocked)&archived=eq.false";
     }
 
-    if (owner) {
-      filters += `&owner_name=eq.${encodeURIComponent(owner)}`;
-    }
+    const rows = await supabaseRequest(`action_board_actions?${filters}`);
 
-    const rows = await supabaseRequest(`${TABLE}?${filters}`);
-    return res.status(200).json((rows || []).map(mapForReminder));
+    return res.status(200).json({
+      ok: true,
+      bypassReachedApp: true,
+      count: rows.length,
+      actions: rows.map(mapForReminder)
+    });
   } catch (error) {
-    return res.status(500).json({ error: error.message || "Actions API error." });
+    return res.status(500).json({
+      ok: false,
+      error: error.message || "Actions API error.",
+      bypassReachedApp: true
+    });
   }
 }
