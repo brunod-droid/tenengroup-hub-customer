@@ -225,7 +225,7 @@ export default function ActionsPage() {
     try {
       setLoading(true);
       const method = editingId ? "PATCH" : "POST";
-      const url = editingId ? `/api/actions?id=${encodeURIComponent(editingId)}` : "/api/actions";
+      const url = editingId ? `/api/actions-admin?id=${encodeURIComponent(editingId)}` : "/api/actions-admin";
       await apiRequest(url, { method, body: JSON.stringify({ ...form, owner_name: firstName(form.owner_name) }) });
       setStatusMsg(editingId ? "Action updated." : "Action created.");
       resetForm();
@@ -375,7 +375,7 @@ export default function ActionsPage() {
           <div style={{ color: "#d0d5dd" }}>Reference board for Action Board | AI Automatic Email reminders</div>
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <a href="/api/actions?token=YOUR_SECRET_TOKEN" target="_blank" rel="noreferrer" style={{ background: "#fff", color: "#111827", padding: "11px 14px", borderRadius: 12, textDecoration: "none", fontWeight: 900 }}>Reminder JSON</a>
+          <a href="https://sunday-lilac.vercel.app/api/action-board-feed?token=tgr_actions_2026_9Kf7LmP2xQ8vNcR4" target="_blank" rel="noreferrer" style={{ background: "#fff", color: "#111827", padding: "11px 14px", borderRadius: 12, textDecoration: "none", fontWeight: 900 }}>Reminder JSON</a>
           <button onClick={downloadOpenActions} style={{ background: "#579bfc", color: "#fff", border: "none", borderRadius: 12, padding: "11px 14px", fontWeight: 900, cursor: "pointer" }}>Export open actions</button>
         </div>
       </div>
