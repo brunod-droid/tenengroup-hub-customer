@@ -12,7 +12,7 @@ function normalizeSupabaseUrl(url) {
 const supabaseUrl = normalizeSupabaseUrl(rawSupabaseUrl);
 
 const TABLES = {
-  orders: 'oak_luna_orders',
+  orders: 'oak_luna_orders_v2',
   kustomer: 'oak_luna_kustomer',
   trustpilot: 'oak_luna_trustpilot',
 };
