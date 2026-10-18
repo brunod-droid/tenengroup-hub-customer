@@ -45,12 +45,14 @@ const COUNTRY_FLAGS = [
   ["il", "Israel"],
   ["it", "Italy"],
   ["hu", "Hungary"],
-  ["ua", "Ukraine"],
   ["ph", "Philippines"],
   ["mx", "Mexico"],
   ["th", "Thailand"],
-  ["es", "Spain"],
-  ["at", "Austria"]
+  ["at", "Austria"],
+  ["be", "Belgium"],
+  ["fr", "France"],
+  ["tr", "Turkey"],
+  ["si", "Slovenia"]
 ];
 
 const NAPOLEONCAT_SLIDES = Array.from({ length: 14 }, (_, i) => `/social/napoleoncat/slide-${String(i + 1).padStart(2, "0")}.jpg`);
@@ -320,7 +322,7 @@ const AI_AGENTS = [
   { id:"qa", name:"QA / Item Received Agent", short:"Handles damaged, wrong item, not satisfied and warranty cases.", full:["Requests pictures where needed.","Identifies damaged vs not satisfied vs production error.","Recommends reorder, exchange, credit or escalation."] }
 ];
 
-const COUNTRIES = ["Israel","Italy","Hungary","Ukraine","Philippines","Mexico","Thailand","Spain","Austria"];
+const COUNTRIES = ["Israel","Italy","Hungary","Philippines","Mexico","Thailand","Austria","Belgium","France","Turkey","Slovenia"];
 
 const QUIZ = [
   ["What does WISMO mean?", "Where Is My Order."],
@@ -719,6 +721,14 @@ function SafeTeamImage({ src, alt }) {
 
 function TrainingSlides() {
   const [countryReveal, setCountryReveal] = useState("");
+  const [secondsRemaining, setSecondsRemaining] = useState(1200);
+  const [timerRunning, setTimerRunning] = useState(true);
+  useEffect(() => {
+    if (!timerRunning || secondsRemaining === 0) return;
+    const interval = setInterval(() => setSecondsRemaining(v => Math.max(0, v - 1)), 1000);
+    return () => clearInterval(interval);
+  }, [timerRunning, secondsRemaining]);
+  const timerDisplay = `${String(Math.floor(secondsRemaining / 60)).padStart(2, "0")}:${String(secondsRemaining % 60).padStart(2, "0")}`;
   const [kpiReveal, setKpiReveal] = useState("");
   const [finalCaseReveal, setFinalCaseReveal] = useState(false);
   const [selectedTpReview, setSelectedTpReview] = useState(null);
@@ -729,6 +739,12 @@ function TrainingSlides() {
   };
 
   return <div style={{ scrollBehavior:"smooth" }}>
+    <div style={{ position:"sticky", top:0, zIndex:100, display:"flex", alignItems:"center", justifyContent:"center", gap:14, padding:"10px 16px", background:"#0f172a", color:"#fff", boxShadow:"0 4px 14px rgba(0,0,0,.18)" }}>
+      <span style={{ fontWeight:800, fontSize:15 }}>Orientation Week · Time left</span>
+      <span aria-live="off" style={{ fontWeight:950, fontSize:30, fontVariantNumeric:"tabular-nums", color:secondsRemaining <= 120 ? "#fca5a5" : "#fff" }}>{timerDisplay}</span>
+      <button onClick={() => setTimerRunning(v => !v)} style={{ padding:"8px 12px", borderRadius:9, border:0, cursor:"pointer", fontWeight:800 }}>{timerRunning ? "Pause" : "Resume"}</button>
+      <button onClick={() => { setSecondsRemaining(1200); setTimerRunning(true); }} style={{ padding:"8px 12px", borderRadius:9, border:0, cursor:"pointer", fontWeight:800 }}>Reset</button>
+    </div>
     <div style={{ position:"fixed", right:24, top:"45%", zIndex:20, display:"flex", flexDirection:"column", gap:10 }}>
       {slides.map((id, i) => <button key={id} onClick={() => scrollToSlide(id)} style={{ width:44, height:44, borderRadius:"50%", border:"none", background:"#0f172a", color:"#fff", fontWeight:900, cursor:"pointer" }}>{i + 1}</button>)}
     </div>
@@ -785,7 +801,7 @@ function TrainingSlides() {
             <div style={{ marginTop:14, lineHeight:1.85, color:"#e5e7eb" }}>
               <b>Team Leads</b><br/>
               Adi<br/>
-              Tace<br/>
+              Thijs<br/>
               Neva<br/>
               <br/>
               <b>Agents</b>
@@ -811,8 +827,8 @@ function TrainingSlides() {
 
           <div style={{ background:"rgba(255,255,255,.12)", borderRadius:22, padding:20, border:"1px solid rgba(255,255,255,.16)" }}>
             <div style={{ fontSize:22, fontWeight:950 }}>Cart Optimization</div>
-            <div style={{ marginTop:12, color:"#93c5fd", fontWeight:900 }}>Maayan</div>
-            <div style={{ marginTop:8, color:"#93c5fd", fontWeight:900 }}>Dominique</div>
+            <div style={{ marginTop:12, color:"#93c5fd", fontWeight:900 }}>Yaara</div>
+
           </div>
         </div>
       </div>
@@ -820,7 +836,7 @@ function TrainingSlides() {
       <div style={{ marginTop:24, background:"rgba(255,255,255,.12)", borderRadius:24, padding:24, border:"1px solid rgba(255,255,255,.16)" }}>
         <div style={{ fontSize:30, fontWeight:900 }}>Global team flag quiz</div>
         <div style={{ marginTop:8, color:"#cbd5e1" }}>Click a flag to reveal the country.</div>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(9, 1fr)", gap:10, marginTop:18 }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(11, minmax(0, 1fr))", gap:10, marginTop:18 }}>
           {COUNTRY_FLAGS.map(([code,country]) => (
             <button
               key={country}
@@ -829,11 +845,9 @@ function TrainingSlides() {
               onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.08)"; }}
               onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
             >
-              <img
-                src={"/flags/" + code + ".png"}
-                alt={country}
-                style={{ width:46, height:32, objectFit:"cover", borderRadius:5, boxShadow:"0 2px 8px rgba(0,0,0,.20)" }}
-              />
+              {["be","fr","tr","si"].includes(code)
+                ? <span role="img" aria-label={country} style={{ fontSize:37, lineHeight:"36px" }}>{({be:"🇧🇪",fr:"🇫🇷",tr:"🇹🇷",si:"🇸🇮"})[code]}</span>
+                : <img src={"/flags/" + code + ".png"} alt={country} style={{ width:46, height:32, objectFit:"cover", borderRadius:5, boxShadow:"0 2px 8px rgba(0,0,0,.20)" }} />}
             </button>
           ))}
         </div>
@@ -846,7 +860,7 @@ function TrainingSlides() {
     <section id="mission" style={{ minHeight:"100vh", padding:70 }}>
       <div style={{ fontSize:56, fontWeight:900 }}>Missions, Channels & KPIs</div>
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:28, marginTop:36 }}>
-        <Box><div style={{ fontSize:32, fontWeight:900 }}>Missions</div><Bullets items={["Optimize customer experience through tone of voice, policies and service quality.","Maximize lifetime value and reduce customer churn.","Identify and implement new channels to enhance satisfaction.","Coordinate and bring insights to Shipping, Factory and Brands."]} /></Box>
+        <Box><div style={{ fontSize:32, fontWeight:900 }}>Missions</div><div style={{fontSize:24}}><Bullets items={["Optimize customer experience through tone of voice, policies and service quality.","Maximize lifetime value and reduce customer churn.","Identify and implement new channels to enhance satisfaction.","Coordinate and bring insights to Shipping, Factory and Brands."]} /></div></Box>
         <Box><div style={{ fontSize:32, fontWeight:900 }}>Where customers reach us</div>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:16, marginTop:18 }}>
             {CHANNELS.map(([name,img]) => <div key={name} style={{ textAlign:"center", background:"#f8fafc", borderRadius:16, padding:14 }}><img src={"/team/" + img} style={{ height:44, objectFit:"contain" }} alt={name} /><div style={{ marginTop:8, fontWeight:800 }}>{name}</div></div>)}
@@ -871,14 +885,14 @@ function TrainingSlides() {
       <div style={{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:14, marginTop:36 }}>
         {[
           ["1","Pre-sales","Products, shipping, warranty, special requests, payment, technical issues, coupons.",["CS","AI"]],
-          ["2","Change Order","Address, item, inscription, shipping method.",["CS"]],
-          ["3","WISMO","Late supplier, late, on time, lost, DNR, returned to sender.",["CS","AI","OCy"]],
+          ["2","Change Order","Address, item, inscription, shipping method.",["CS","OCy"]],
+          ["3","WISMO","Late supplier, late, on time, lost, DNR, returned to sender.",["CS","AI"]],
           ["4","Item Received","Damaged, not satisfied, production mistake, customer mistake.",["CS","QA"]],
           ["5","Other","Account issues, collaboration, spam.",["CS"]]
         ].map(([num,title,text,teams]) => <div key={title} style={{ border:"1px solid #e5e7eb", borderRadius:22, padding:20, background:"#fff" }}>
           <div style={{ width:40, height:40, borderRadius:"50%", background:"#2563eb", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900 }}>{num}</div>
-          <div style={{ fontSize:22, fontWeight:900, marginTop:14 }}>{title}</div>
-          <div style={{ color:"#4b5563", lineHeight:1.6, marginTop:10 }}>{text}</div>
+          <div style={{ fontSize:26, fontWeight:900, marginTop:14 }}>{title}</div>
+          <div style={{ fontSize:22, color:"#4b5563", lineHeight:1.55, marginTop:10 }}>{text}</div>
           <div style={{ marginTop:14 }}>{teams.map((t) => <TeamBadge key={t} label={t} />)}</div>
         </div>)}
       </div>
@@ -889,7 +903,7 @@ function TrainingSlides() {
       <div style={{ fontSize:56, fontWeight:900 }}>Cart Optimization</div>
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:36, alignItems:"center", marginTop:36 }}>
         <img src="/team/cart-optimization.jpg" style={{ width:"100%", maxHeight:520, objectFit:"contain", borderRadius:24, background:"#fff" }} alt="Cart Optimization" />
-        <div><div style={{ fontSize:30, fontWeight:900 }}>Why it matters</div><Bullets items={["Cart Optimization focuses on improving conversion and order quality.","The team helps reduce friction before the order becomes a customer-care issue.","Better cart experience means fewer mistakes, fewer contacts, and higher satisfaction.","It connects customer behavior, checkout experience and operational outcomes."]} /></div>
+        <div><div style={{ fontSize:36, fontWeight:900 }}>Why it matters</div><div style={{fontSize:24}}><Bullets items={["Cart Optimization focuses on improving conversion and order quality.","The team helps reduce friction before the order becomes a customer-care issue.","Better cart experience means fewer mistakes, fewer contacts, and higher satisfaction.","It connects customer behavior, checkout experience and operational outcomes."]} /></div></div>
       </div>
     </section>
 
@@ -912,7 +926,7 @@ function TrainingSlides() {
               boxShadow:"0 10px 24px rgba(15,23,42,0.08)"
             }}
           >
-            <div style={{ fontSize:28, fontWeight:900 }}>Avis TrustPilot {index + 1}</div>
+            <div style={{ fontSize:28, fontWeight:900 }}>Trustpilot review {index + 1}</div>
             <div style={{ marginTop:10, color:"#64748b", lineHeight:1.6 }}>Click to enlarge</div>
           </button>
         ))}
@@ -956,8 +970,10 @@ function TrainingSlides() {
             src={"/team/" + selectedTpReview}
             alt={selectedTpReview}
             style={{
-              maxWidth:"92vw",
-              maxHeight:"88vh",
+              width:"min(1400px, 98vw)",
+              height:"94vh",
+              maxWidth:"98vw",
+              maxHeight:"94vh",
               objectFit:"contain",
               borderRadius:22,
               background:"#fff",
@@ -973,7 +989,7 @@ function TrainingSlides() {
     <section id="final" style={{ minHeight:"100vh", padding:70 }}>
       <div style={{ fontSize:56, fontWeight:900 }}>Final note</div>
       <div style={{ fontSize:28, lineHeight:1.6, marginTop:24, maxWidth:1000 }}>The cooperation between our departments is a big part of our success in giving a high-quality and personal service to our customers.</div>
-      <div style={{ fontSize:24, color:"#4b5563", lineHeight:1.6, marginTop:24 }}>Everything you should know about Customer Care is available in our Customer Care Hub.</div>
+      <div style={{ fontSize:24, color:"#4b5563", lineHeight:1.6, marginTop:24 }}>Everything you should know about Customer Care — soon available in Raziel, our new Customer Care Hub.</div>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:18, marginTop:40 }}>
         <SafeTeamImage src="/team/team1.jpg" alt="Team 1" />
         <SafeTeamImage src="/team/team2.jpg" alt="Team 2" />
@@ -1034,7 +1050,7 @@ function TrainingSlides() {
         </button>
 
         {finalCaseReveal && (
-          <div style={{ marginTop:18 }}>
+          <div style={{ marginTop:18, fontSize:25, lineHeight:1.6 }}>
             <Bullets items={[
               "Stay calm and start with strong empathy.",
               "Acknowledge both issues clearly: the order is late and the item arrived damaged.",
