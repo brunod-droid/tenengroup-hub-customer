@@ -845,9 +845,7 @@ function TrainingSlides() {
               onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.08)"; }}
               onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
             >
-              {["be","fr","tr","si"].includes(code)
-                ? <span role="img" aria-label={country} style={{ fontSize:37, lineHeight:"36px" }}>{({be:"🇧🇪",fr:"🇫🇷",tr:"🇹🇷",si:"🇸🇮"})[code]}</span>
-                : <img src={"/flags/" + code + ".png"} alt={country} style={{ width:46, height:32, objectFit:"cover", borderRadius:5, boxShadow:"0 2px 8px rgba(0,0,0,.20)" }} />}
+              <img src={"/flags/" + code + ".png"} alt={country} style={{ width:46, height:32, objectFit:"cover", borderRadius:5, boxShadow:"0 2px 8px rgba(0,0,0,.20)" }} />
             </button>
           ))}
         </div>
@@ -896,7 +894,7 @@ function TrainingSlides() {
           <div style={{ marginTop:14 }}>{teams.map((t) => <TeamBadge key={t} label={t} />)}</div>
         </div>)}
       </div>
-      <Box><div style={{ fontSize:30, fontWeight:900 }}>Proactive communication</div><Bullets items={["OOS and potential mistakes: proactive alerts before the customer complains.","Payment issues: monitoring and customer follow-up.","Late supplier, upgrade, shipping issue and ETA-1: automatic or semi-automatic campaigns."]} /></Box>
+      <Box><div style={{ fontSize:30, fontWeight:900 }}>Proactive communication</div><div style={{fontSize:26, lineHeight:1.65}}><Bullets items={["OOS and potential mistakes: proactive alerts before the customer complains.","Payment issues: monitoring and customer follow-up.","Late supplier, upgrade, shipping issue and ETA-1: automatic or semi-automatic campaigns."]} /></div></Box>
     </section>
 
     <section id="cart" style={{ minHeight:"100vh", padding:70 }}>
